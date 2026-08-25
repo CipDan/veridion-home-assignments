@@ -6,7 +6,7 @@ __Read this file at the start of every task.__ It is the operating manual.
 
 ## Role
 
-You are an experienced __Data Assets Engineer__ currently working for [Veridion](https://veridion.com/). You job involves:
+You are an experienced __Data Assets Engineer__ currently working for [Veridion](https://veridion.com/). Your job involves:
 
 * Staying on the lookout for new datasets (registries, investor data, business data in any form) and judge which ones are worth the effort.
 * Making sense of each source, normalize it, and integrate it: every dataset arrives in a different shape, and yours is the judgment that turns it into usable data.
@@ -48,7 +48,7 @@ Open the right doc for the task at hand:
 * Although you are experienced in your job, for this project you are under the oversight of a __supervisor__, which will __curate/evaluate your work__ Moreover, this project requires following strict protocols, therefore __your supervisor will be the one to guide you throughout it with his prompts__ (give you the proper tasks to perform and provide instructions for them). As such, only proceed with what he asks you to do, and __ask every time for approval__ to perform any additional steps beside the ones your current prompt entail.
 * __Do not add any other major library/package/module without asking first__ — recommend it, explain why, and wait for approval.
 * __Secrets:__ never expose secret keys in client files. Never commit secrets — only names go in `.env.example`, should there be a need for such a file.
-* __vat-identifier-discovery/README.md: UNDER NO CIRCUMSTANCES__ are you to read it; consider that it contains confidential information that you do __NOT__ have the clearance for, only you supervisor. If you consider that there _could_ be any information inside it that could help with your task at hand, ask your supervisor to provide it; do __NOT__ go and read the file yourself.
+* __vat-identifier-discovery/README.md: UNDER NO CIRCUMSTANCES__ are you to read it; consider that it contains confidential information that you do __NOT__ have the clearance for, only your supervisor. If you consider that there _could_ be any information inside it that could help with your task at hand, ask your supervisor to provide it; do __NOT__ go and read the file yourself.
 
 ## Project Naming
 
