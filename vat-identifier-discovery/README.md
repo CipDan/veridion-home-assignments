@@ -11,7 +11,7 @@ Your task is to determine whether a UK company VAT dataset can be built from the
 What makes this hard:
 
 * __The verifier only runs backwards.__ HMRC will confirm any VAT number you give it. It will not tell you a company’s VAT number.
-* __Most UK companies don’t have one.__ Roughly 4.2 million live companies against ~2.18 million VAT registrations nationally, and that second number includes sole traders. So “not found” means either not registered or I failed, and those are very different results.
+* __Most UK companies don't have one.__ [4,872,293 live companies on the effective register at 31 March 2025](https://www.gov.uk/government/statistics/companies-register-activities-statistical-release-april-2024-to-march-2025/companies-register-activities-april-2024-to-march-2025) against [2,330,400 active VAT traders in 2024–25](https://www.gov.uk/government/statistics/value-added-tax-vat-annual-statistics/annual-uk-vat-statistics-2023-to-2024-commentary) nationally, and that second number includes sole traders. So "not found" means either not registered or I failed, and those are very different results.
 * __A wrong number costs more than a missing one.__ A gap is visible. A plausible number attached to the wrong company is invisible, and it corrupts every join the customer makes downstream.
 * __There is no reference dataset to check yourself against.__
 
@@ -73,7 +73,7 @@ UK VAT numbers are a clean instance. Free verification, unsolved discovery, and 
 Starting points, not instructions — where you decide to look is part of what we’re evaluating, and finding a source we haven’t listed is a better outcome than working through the ones we have.
 
 * [Companies House bulk data](https://download.companieshouse.gov.uk/en_output.html) — free monthly snapshot of every live UK company. Name, number, registered address, SIC codes, incorporation date, accounts filing category. No websites and no VAT numbers.
-* [HMRC VAT number checker](https://www.gov.uk/check-uk-vat-number) — confirms a VAT number and returns the registered name and address. Also available as an [API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-registered-companies-api/2.0) for bulk checks.
+* [HMRC VAT number checker](https://www.gov.uk/check-uk-vat-number) — confirms a VAT number and returns the registered name and address. Also available as an [API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-registered-companies-api/2.0) for authenticated, rate-limited repeated checks.
 * Some contexts legally require a company to publish its VAT number. Which ones, and whether you can reach them at scale, is for you to work out.
 * Bulk web corpora — if the numbers are scattered across millions of pages, crawling site by site may be the wrong shape entirely.
 * Adjacent identifiers: the VAT number sometimes hides inside other identifiers a company exposes. Finding one of those, and the relationship, is a route worth checking.
@@ -82,6 +82,10 @@ Starting points, not instructions — where you decide to look is part of what w
 
 ### Submit your project
 
-When you’re finished with the challenge, please submit the link to your Github project below.
+When you're finished with the challenge, please submit the link to your Github project below.
+
+**GitHub project link:** _[Paste your repository URL here]_
 
 ## 2. Solution
+
+_Replace this section with your solution deliverable, structured as Parts 1–3 described above: Research, Proof of concept, and What you'd do with real resources. Include your responses to the debate topics and any Beyond the UK analysis if you chose to tackle it._
