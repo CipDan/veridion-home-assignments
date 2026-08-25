@@ -82,6 +82,8 @@ Starting points, not instructions — where you decide to look is part of what w
 
 ### Submit your project
 
-When you’re finished with the challenge, please submit the link to your Github project below.
+When you’re finished with the challenge, please submit the link to your Github project.
 
 ## 2. Solution
+
+[//]: # (TODO)
