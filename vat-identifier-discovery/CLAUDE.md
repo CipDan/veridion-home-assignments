@@ -78,7 +78,8 @@ Public wordmark: __VAT Identifier Discovery__
 
 ## Communication
 
-* When finishing a research task, use the deliverable requirements in _README.md_ as a completion checklist and include:
+* When finishing a research task, present your findings and any conclusions drawn throughout the execution of it in ample detail.
+* When validating a candidate VAT source against the sample, ensure that your reasoning includes:
   * How the sample was chosen and why it is representative.
   * A traceable source trail showing what was tried, the evidence returned, and the resulting conclusions.
   * Material dead ends, including the source, the expected result, and the specific reason each path failed.
