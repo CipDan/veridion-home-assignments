@@ -10,12 +10,25 @@ both a Companies House number and a VAT number the way an OCDS party can.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterator
 
 import requests
 
 SEARCH_URL = "https://directory.peppol.eu/search/1.0/json"
 PAGE_SIZE = 100
+
+# The Directory's REST API allows at most 2 queries/second and returns
+# HTTP 429 above that rate (docs.peppol.eu REST API docs).
+MIN_REQUEST_INTERVAL_SECONDS = 0.5
+MAX_429_RETRIES = 4
+RETRY_BACKOFF_SECONDS = 1.0
+
+# Any single query is capped at 1,000 results by the Directory itself;
+# requesting a page beyond that returns an error rather than more matches.
+MAX_RESULT_COUNT = 1000
+
+_last_request_time: float | None = None
 
 
 def search(query: str = "", **params: str | int) -> dict:
@@ -24,25 +37,69 @@ def search(query: str = "", **params: str | int) -> dict:
     `query` is the free-text `q` parameter; additional query params (e.g.
     country="GB", resultPageIndex=2) are passed through as-is. See
     iter_all_results() to page through every match automatically.
+
+    Waits out the Directory's minimum request interval before sending, and
+    retries a bounded number of times (with backoff) if the Directory
+    responds with HTTP 429 (rate limited).
     """
+    global _last_request_time
+
     request_params: dict[str, str | int] = {"resultPageCount": PAGE_SIZE, **params}
     if query:
         request_params["q"] = query
-    response = requests.get(SEARCH_URL, params=request_params, timeout=30)
-    response.raise_for_status()
-    return response.json()
+
+    for attempt in range(MAX_429_RETRIES + 1):
+        if _last_request_time is not None:
+            elapsed = time.monotonic() - _last_request_time
+            if elapsed < MIN_REQUEST_INTERVAL_SECONDS:
+                time.sleep(MIN_REQUEST_INTERVAL_SECONDS - elapsed)
+        response = requests.get(SEARCH_URL, params=request_params, timeout=30)
+        _last_request_time = time.monotonic()
+        if response.status_code == 429 and attempt < MAX_429_RETRIES:
+            time.sleep(RETRY_BACKOFF_SECONDS * (2**attempt))
+            continue
+        response.raise_for_status()
+        return response.json()
+
+    raise AssertionError("unreachable")  # loop always returns or raises
 
 
 def iter_all_results(query: str = "", max_pages: int | None = None, **params: str | int) -> Iterator[dict]:
-    """Yield every match across all result pages for a given search."""
+    """Yield every match across all result pages for a given search.
+
+    Stops at the Directory's 1,000-result cap (MAX_RESULT_COUNT / the
+    effective resultPageCount) even if `max_pages` would allow more, since
+    requesting a page beyond that fails rather than returning further
+    matches. If the query's total-result-count exceeds the cap and that hard
+    cap -- not a caller-supplied `max_pages` -- is what stopped iteration,
+    prints a warning that results were truncated -- split the query (e.g. by
+    name prefix) or use the Directory's bulk export feature to get the rest.
+    """
+    page_size = int(params.get("resultPageCount", PAGE_SIZE))
+    max_result_pages = -(-MAX_RESULT_COUNT // page_size)  # ceiling division
+
     page_index = 0
+    total_result_count: int | None = None
+    hit_hard_cap = False
     while max_pages is None or page_index < max_pages:
+        if page_index >= max_result_pages:
+            hit_hard_cap = True
+            break
         data = search(query, resultPageIndex=page_index, **params)
+        if total_result_count is None:
+            total_result_count = data.get("total-result-count")
         matches = data.get("matches", [])
         if not matches:
             return
         yield from matches
         page_index += 1
+
+    if hit_hard_cap and total_result_count is not None and total_result_count > MAX_RESULT_COUNT:
+        print(
+            f"iter_all_results: truncated at the Directory's {MAX_RESULT_COUNT}-result "
+            f"cap ({total_result_count} total matches available) -- split the query or "
+            "use bulk export to see the rest."
+        )
 
 
 def get_scheme_and_local_id(match: dict) -> tuple[str, str]:
