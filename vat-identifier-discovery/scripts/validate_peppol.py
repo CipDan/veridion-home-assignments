@@ -39,12 +39,19 @@ def normalize_name(name: str) -> str:
     return "".join(name.upper().split())
 
 
-def load_sample_name_lookup() -> dict[str, tuple[str, str]]:
-    """Build {normalized CompanyName: (CompanyNumber, original name)}."""
+def load_sample_name_lookup() -> dict[str, list[tuple[str, str]]]:
+    """Build {normalized CompanyName: [(CompanyNumber, original name), ...]}.
+
+    A normalized name can map to more than one CompanyNumber in the sample
+    (631 cases as of the 2026-08-01 snapshot -- distinct companies that
+    happen to share a name, e.g. FC/OE overseas-company re-registrations).
+    Keeping every candidate lets callers tell an unambiguous match from an
+    ambiguous one, instead of silently keeping whichever row was read last.
+    """
     df = load_columns(SAMPLE_CSV, [COMPANY_NAME_COL, COMPANY_NUMBER_COL])
-    lookup = {}
+    lookup: dict[str, list[tuple[str, str]]] = {}
     for name, number in zip(df[COMPANY_NAME_COL], df[COMPANY_NUMBER_COL]):
-        lookup[normalize_name(name)] = (number.strip(), name)
+        lookup.setdefault(normalize_name(name), []).append((number.strip(), name))
     return lookup
 
 
@@ -83,6 +90,7 @@ def join(max_pages: int | None) -> None:
     n_entities = 0
     n_vat_hits = 0
     matches = []
+    ambiguous = []
 
     for match in iter_all_results(country="GB", max_pages=max_pages):
         n_entities += 1
@@ -92,13 +100,21 @@ def join(max_pages: int | None) -> None:
         n_vat_hits += 1
         digits = "".join(ch for ch in local_id if ch.isdigit())
         for name in get_names(match):
-            sample_hit = sample_lookup.get(normalize_name(name))
-            if sample_hit:
-                matches.append({"peppol_name": name, "vat_digits": digits, "sample_number": sample_hit[0], "sample_name": sample_hit[1]})
-                break
+            candidates = sample_lookup.get(normalize_name(name))
+            if not candidates:
+                continue
+            if len(candidates) > 1:
+                ambiguous.append({"peppol_name": name, "vat_digits": digits, "candidates": candidates})
+            else:
+                sample_number, sample_name = candidates[0]
+                matches.append({"peppol_name": name, "vat_digits": digits, "sample_number": sample_number, "sample_name": sample_name})
+            break
 
     print(f"GB entities scanned: {n_entities}, with 9932 (GB:VAT) id: {n_vat_hits}")
-    print(f"Matched to sample CSV by CompanyName: {len(matches)}")
+    print(f"Matched to sample CSV by CompanyName (unambiguous): {len(matches)}")
+    print(f"Ambiguous matches (name maps to >1 CompanyNumber, skipped): {len(ambiguous)}")
+    for hit in ambiguous[:15]:
+        print(f"  {hit['peppol_name']!r} (VAT {hit['vat_digits']}) -> candidates {hit['candidates']}")
 
     if not matches:
         return

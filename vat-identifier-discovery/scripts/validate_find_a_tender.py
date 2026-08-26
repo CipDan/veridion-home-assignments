@@ -30,14 +30,18 @@ POSTCODE_COL = "RegAddress.PostCode"
 
 def load_sample_lookup() -> dict[str, dict]:
     """Build {normalized CompanyNumber: {name, postcode}} from the sample CSV."""
+    # Unpacked positionally (as plain tuples) rather than via itertuples()
+    # attribute access: " CompanyNumber" (leading space) and
+    # "RegAddress.PostCode" (a dot) aren't valid Python identifiers, so
+    # itertuples() silently renames those fields to "_1"/"_2" and getattr()
+    # by name fails. pandas.read_csv(usecols=...) always returns columns in
+    # the CSV's own file order regardless of the usecols list's order, so
+    # the unpacking order below (name, number, postcode) matches this
+    # sample's column layout (CompanyName, CompanyNumber, ..., PostCode).
     df = load_columns(SAMPLE_CSV, [COMPANY_NAME_COL, COMPANY_NUMBER_COL, POSTCODE_COL])
     lookup = {}
-    for row in df.itertuples(index=False):
-        number = getattr(row, COMPANY_NUMBER_COL.strip()).strip().upper()
-        lookup[number] = {
-            "name": getattr(row, COMPANY_NAME_COL),
-            "postcode": getattr(row, POSTCODE_COL.replace(".", "_")),
-        }
+    for name, number, postcode in df.itertuples(index=False, name=None):
+        lookup[number.strip().upper()] = {"name": name, "postcode": postcode}
     return lookup
 
 
