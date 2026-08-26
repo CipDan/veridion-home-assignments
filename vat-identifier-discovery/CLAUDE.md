@@ -54,7 +54,7 @@ In order to verify the validity of a source (mainly checking if any VAT values o
   * [Authorisation: Application-restricted endpoints](https://developer.service.hmrc.gov.uk/api-documentation/docs/authorisation/application-restricted-endpoints);
   * [Testing in the sandbox](https://developer.service.hmrc.gov.uk/api-documentation/docs/testing).
 * The __HMRC EORI number checker API:__ Another validation option for the adjacent identifier path. Unlike the __VAT API__, this one is available through an open access endpoint (no authorisation required). For more details on the API, refer to [this](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/check-eori-number-api/1.0).
-* __[VIES](https://ec.europa.eu/taxation_customs/vies/#/vat-validation):__ This should only serve as a fallback, since mostly just Northern Ireland registered businesses would be featured here.
+* __[VIES](https://ec.europa.eu/taxation_customs/vies/#/vat-validation):__ Use this only for EU VAT identifiers and `XI`-prefixed Northern Ireland identifiers; never submit ordinary `GB` VAT numbers to VIES. Validate `GB` VAT numbers through HMRC, and retain HMRC confirmation for every UK VAT number reported in the final deliverable, including any `XI` identifier also checked through VIES.
 
 These options are what I can provide you with at the moment; should you discover other candidate validation options, you are more than welcome to pitch them to me.
 
@@ -78,7 +78,13 @@ Public wordmark: __VAT Identifier Discovery__
 
 ## Communication
 
-* When finishing a research task, present your findings and any conclusions drawn throughout the execution of it in ample detail.
+* When finishing a research task, use the deliverable requirements in _README.md_ as a completion checklist and include:
+  * How the sample was chosen and why it is representative.
+  * A traceable source trail showing what was tried, the evidence returned, and the resulting conclusions.
+  * Material dead ends, including the source, the expected result, and the specific reason each path failed.
+  * HMRC confirmation for every UK VAT number reported as found.
+  * The measured false-positive rate, how it was measured, and the sample used.
+  * The limitations of the process and what the reported results do not capture.
 * When completing a coding task, state "what changed" and "how to test it"  -- no filler, just a concise answer.
 
 ---
