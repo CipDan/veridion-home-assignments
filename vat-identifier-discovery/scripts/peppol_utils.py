@@ -27,7 +27,6 @@ RETRY_BACKOFF_SECONDS = 1.0
 # Any single query is capped at 1,000 results by the Directory itself;
 # requesting a page beyond that returns an error rather than more matches.
 MAX_RESULT_COUNT = 1000
-MAX_RESULT_PAGES = MAX_RESULT_COUNT // PAGE_SIZE
 
 _last_request_time: float | None = None
 
@@ -68,16 +67,24 @@ def search(query: str = "", **params: str | int) -> dict:
 def iter_all_results(query: str = "", max_pages: int | None = None, **params: str | int) -> Iterator[dict]:
     """Yield every match across all result pages for a given search.
 
-    Stops at the Directory's 1,000-result cap (10 pages of PAGE_SIZE=100)
-    even if `max_pages` would allow more, since requesting page index 10+
-    fails rather than returning further matches. If the query's
-    total-result-count exceeds the cap, prints a warning that results were
-    truncated -- split the query (e.g. by name prefix) or use the
-    Directory's bulk export feature to get the rest.
+    Stops at the Directory's 1,000-result cap (MAX_RESULT_COUNT / the
+    effective resultPageCount) even if `max_pages` would allow more, since
+    requesting a page beyond that fails rather than returning further
+    matches. If the query's total-result-count exceeds the cap and that hard
+    cap -- not a caller-supplied `max_pages` -- is what stopped iteration,
+    prints a warning that results were truncated -- split the query (e.g. by
+    name prefix) or use the Directory's bulk export feature to get the rest.
     """
+    page_size = int(params.get("resultPageCount", PAGE_SIZE))
+    max_result_pages = MAX_RESULT_COUNT // page_size
+
     page_index = 0
     total_result_count: int | None = None
-    while (max_pages is None or page_index < max_pages) and page_index < MAX_RESULT_PAGES:
+    hit_hard_cap = False
+    while max_pages is None or page_index < max_pages:
+        if page_index >= max_result_pages:
+            hit_hard_cap = True
+            break
         data = search(query, resultPageIndex=page_index, **params)
         if total_result_count is None:
             total_result_count = data.get("total-result-count")
@@ -87,7 +94,7 @@ def iter_all_results(query: str = "", max_pages: int | None = None, **params: st
         yield from matches
         page_index += 1
 
-    if total_result_count is not None and total_result_count > MAX_RESULT_COUNT:
+    if hit_hard_cap and total_result_count is not None and total_result_count > MAX_RESULT_COUNT:
         print(
             f"iter_all_results: truncated at the Directory's {MAX_RESULT_COUNT}-result "
             f"cap ({total_result_count} total matches available) -- split the query or "
