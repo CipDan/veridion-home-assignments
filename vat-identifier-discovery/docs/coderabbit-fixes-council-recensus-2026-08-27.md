@@ -18,9 +18,11 @@ User prompts and assistant prose responses are reproduced **verbatim**, includin
 >
 > Inline comments:
 > In `@vat-identifier-discovery/docs/coderabbit-fixes-ckan-census-2026-08-26.md`:
+>
 > - Around line 1-5: Update the documented finding count from five to four in the affected statements, including the session summary and references around the purpose and later discussion, unless a fifth finding is explicitly documented. Keep the historical narrative consistent with the four findings listed.
 >
 > In `@vat-identifier-discovery/scripts/validate_council_spend.py`:
+>
 > - Around line 145-146: Update the VAT prefix classification logic around
 > non_uk_prefixes so every leading two-letter prefix is detected and skipped
 > unless it is GB or XI, preventing prefixes such as PT, CY, FI, and GR from being
@@ -79,6 +81,7 @@ Claude re-read `FINDINGS.md`'s local council section (lines 150-162 at the time)
 >
 > Inline comments:
 > In `@vat-identifier-discovery/scripts/validate_council_spend.py`:
+>
 > - Around line 181-184: Update the validation loop in the script so
 > get_access_token() is acquired lazily, immediately before the first value that
 > will be passed to check_vat_number(). Remove the eager token acquisition before join() processing, while preserving the existing skip behavior for non-GB, GD, and HA prefixes and avoiding HMRC authentication when no value requires the sandbox.
@@ -87,13 +90,14 @@ Claude re-read `FINDINGS.md`'s local council section (lines 150-162 at the time)
 >
 > Outside diff comments:
 > In `@vat-identifier-discovery/scripts/validate_council_spend.py`:
+>
 > - Around line 53-61: Update find_vat_column to select only columns representing actual VAT registration numbers, excluding status, rate, amount, and other non-identifier VAT fields; ensure names such as "VAT registration status" and "VRN status" are not matched while preserving valid identifier-column matches.
 > - Line 33: Update both read_council_csv() branches to stop silently skipping
 > malformed CSV rows; instead fail the resource as incomplete or explicitly track
 > skipped-row counts and qualify survey() and join() results so incomplete input
 > is not reported as fully validated.
 > - Around line 88-95: Validate the URL returned by get_best_csv_resource before read_council_csv fetches it: require HTTPS and ensure its hostname is present in an explicit trusted-host allowlist. Reject disallowed resources through the existing no-CSV/error handling path, and preserve the current behavior for approved URLs.
-> - Line 27: Update the SAMPLE_CSV path used by load_columns() to resolve relative to the script's location via Path(__file__), preserving the existing sample
+> - Line 27: Update the SAMPLE_CSV path used by load_columns() to resolve relative to the script's location via Path(\_\_file\_\_), preserving the existing sample
 > filename and ensuring it does not depend on the caller's working directory.
 
 ### 3.2. Process — lazy token acquisition
@@ -125,12 +129,14 @@ Claude ran `py -3.14 -m py_compile validate_council_spend.py` (pass) and `py -3.
 > Applied the still-valid fixes, verified against current code, and skipped what wasn't fully applicable.
 >
 > **Fixed:**
+>
 > 1. **Lazy token acquisition** (line 169 inline finding) — `get_access_token()` was called eagerly at the top of `join()` even if every extracted VAT value turned out non-GB/GD/HA and never reached `check_vat_number()`. Changed `token` to `str | None = None`, acquired only right before the first `check_vat_number()` call. Type-checks clean (mypy narrows `token` to `str` after the `if token is None` assignment).
 > 2. **`find_vat_column` false positives** — `"vat registration"`/`"vrn"` substring matching would also catch non-identifier columns like "VAT registration status" or "VRN status". Added a `VAT_NON_IDENTIFIER_KEYWORDS = ("status", "rate", "amount")` exclusion checked first.
 > 3. **Silent malformed-row dropping** — `on_bad_lines="skip"` discarded bad rows with no record. Switched to a counting callback (`on_bad_lines=callback, engine="python"`) so `read_council_csv` now returns `(df, skipped_count)`. `survey()` and `join()` both now print a warning and tally when a result is based on incomplete parsing, rather than reporting it as fully validated. Verified pandas 3.0.5's callback behavior with a disposable test script (per the project's no-ad-hoc-`-c` rule), then deleted it.
 > 4. **Partial fix — insecure transport**: added an HTTPS-only check on the resource URL, routed through the existing "no live CSV resource" path as the finding specified.
 >
 > **Skipped:**
+>
 > - **Trusted-host allowlist** (rest of the URL-validation finding): not applied. The whole point of this script (per its own docstring) is that ~350 councils each publish independently on their own domains with no shared schema — there's no fixed set of hosts to allowlist without defeating the tool's purpose. Applied only the HTTPS half.
 > - **`SAMPLE_CSV` relative path** (line 27): not applied. It's the exact same `"../BasicCompanyData-..."` pattern used identically in `validate_defra.py`, `validate_peppol.py`, and `validate_find_a_tender.py` — a project-wide convention (scripts are invoked from `scripts/` per each file's own `Usage:` docstring), not a defect local to this file. Fixing it here alone would just make this file inconsistent with the other three; flagging it as a possible cross-cutting change for your call rather than doing it unilaterally.
 >
@@ -150,9 +156,9 @@ Claude ran `py -3.14 -m py_compile validate_council_spend.py` (pass) and `py -3.
 ### 4.1. User prompt (verbatim)
 
 > Regarding your notes:
-> * so that mypy no longer triggers in future type checks, fix the issue in ckan_utils.py, ensuring that no other errors propagate.
-> * the relative path issue will remain not applied.
-> * so that there are no inaccurate figures regarding the local council check, re-run it and compare the new values with existing ones.
+> \* so that mypy no longer triggers in future type checks, fix the issue in ckan_utils.py, ensuring that no other errors propagate.
+> \* the relative path issue will remain not applied.
+> \* so that there are no inaccurate figures regarding the local council check, re-run it and compare the new values with existing ones.
 
 ### 4.2. Process — fixing the `ckan_utils.py` mypy error
 
@@ -185,7 +191,7 @@ Claude rewrote the local council "Full validation" sub-bullets (the 85/34/2/10 b
 > **3. Re-ran the local council census** with the corrected script (full 131-organization population, same as before):
 >
 > | | Old (2026-08-26) | New (2026-08-27) |
-> |---|---|---|
+> | --- | --- | --- |
 > | No live/secure CSV | 85 (64.9%) | 109 (83.2%) |
 > | Fetch failures | 34 (26.0%) | 13 (9.9%) |
 > | Broken HTML links | 2 (1.5%) | 1 (0.8%) |
