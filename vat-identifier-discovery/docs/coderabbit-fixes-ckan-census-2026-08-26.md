@@ -19,6 +19,7 @@ User prompts and assistant prose responses are reproduced **verbatim**, includin
 >
 > Inline comments:
 > In `@vat-identifier-discovery/FINDINGS.md`:
+>
 > - Around line 123-126: Verify the DEFRA scan output and reconcile the month
 > scope before updating the findings: vat-identifier-discovery/FINDINGS.md lines
 > 123-126 must use one confirmed scope for both the population metrics and
@@ -28,6 +29,7 @@ User prompts and assistant prose responses are reproduced **verbatim**, includin
 > reflect the same verified scope and narrative.
 >
 > In `@vat-identifier-discovery/scripts/ckan_utils.py`:
+>
 > - Around line 99-118: Update the sampler around get_total_count and
 > package_search to build and sample a distinct organization-level frame when
 > council-level rates are required, rather than sampling package offsets with
@@ -38,12 +40,14 @@ User prompts and assistant prose responses are reproduced **verbatim**, includin
 > remove the claim that the qualifying organization pool was exhausted.
 >
 > In `@vat-identifier-discovery/scripts/validate_council_spend.py`:
+>
 > - Around line 160-162: Update the validation flow around normalize_vat_number,
 > is_valid_uk_vat_checksum, and check_vat_number to classify non-GB prefixes and
 > GD/HA values as unsupported before performing checksum or HMRC checks, matching
 > the existing handling in validate_defra.py.
 >
 > In `@vat-identifier-discovery/scripts/validate_defra.py`:
+>
 > - Around line 118-146: Update the month-selection flow in the function
 > containing the shown loop to reject non-positive n_months and return early when
 > get_defra_month_urls produces no month URLs, matching the existing validation
@@ -89,7 +93,7 @@ Reading `validate_defra.py`'s `join()` confirmed it had no `n_months` validation
 
 Claude re-ran `py -3.14 validate_defra.py scan 0`, `join 0`, and `join -3` to confirm the new guards reject non-positive input with a clear message, then re-ran `py -3.14 validate_defra.py join 6` to confirm the guarded code path still reproduces the exact same 89-match / 8-foreign-prefixed / 80-of-81-checksum-valid result as before the edit. Claude also ran `py -3.14 validate_council_spend.py survey 8` against live CKAN data to confirm the rewritten sampler and the new per-row classification logic both execute without error end-to-end. Finally, `git status --short` / `git diff --stat` confirmed only the five intended files (`FINDINGS.md`, `ckan_utils.py`, `inspect_batch2_sources.py`, `validate_council_spend.py`, `validate_defra.py`) carried changes, and that `docs/tier2-batch-validation-2026-08-26.md` was untouched per the reverted edits in §1.3/§1.4.
 
-### Assistant response (verbatim)
+### 1.8. Assistant response (verbatim)
 
 > docs file confirmed untouched, matching the earlier correction. Summary of what I applied:
 >
@@ -105,7 +109,7 @@ Claude re-ran `py -3.14 validate_defra.py scan 0`, `join 0`, and `join -3` to co
 >
 > One thing worth flagging: while validating the sampler fix I found `is_local_council()`'s `_NON_COUNCIL_ORG_KEYWORDS` list doesn't actually contain "higher education funding council," "council for healthcare regulatory excellence," or "general social care council" — despite FINDINGS.md/the docs snapshot claiming these were excluded. A live test sampled "Higher Education Funding Council for England" straight through the filter. That's outside the scope of the review comments given, so I didn't touch it — flagging it for your call.
 
-### 1.8. Files created and edited
+### 1.9. Files created and edited
 
 - `vat-identifier-discovery/FINDINGS.md` — pre-existing, edited: DEFRA month-scope wording corrected (line 125), and a sampler-bias caveat added to the local council entry (lines 154-160).
 - `vat-identifier-discovery/scripts/ckan_utils.py` — pre-existing, edited: new `get_all_packages()` helper; `random_sample_distinct_organizations()` rewritten to sample uniformly from the full distinct-organization frame instead of deduplicated random package offsets.
@@ -132,25 +136,26 @@ Claude added the three missing keywords to `_NON_COUNCIL_ORG_KEYWORDS` in `ckan_
 
 With the sampler and the exclusion list both corrected, Claude ran `py -3.14 validate_council_spend.py join 140` (140 chosen to exceed the confirmed 131-organization population, so the corrected sampler returns every qualifying council rather than a subset) in the background, redirecting output to a temporary file (`vat-identifier-discovery/scripts/council_join_rerun_output.txt`) given the expected runtime of dozens of live HTTP fetches against council-run sites of varying responsiveness.
 
-### Assistant response (verbatim)
+### 2.4. Assistant response (verbatim)
 
 > I've kicked off the full re-run (131 distinct qualifying councils, sampled with n=140 so it covers the whole population) in the background — it'll take a while due to network fetches/timeouts across ~40+ council CSVs. I'll report back with the corrected FINDINGS.md numbers once it completes.
 >
 > While that runs: to confirm, I found and fixed one more false positive beyond the three you already knew about — **"Children's Workforce Development Council"** (a defunct DfE-sponsored sector skills body, not a local authority) — also slipped through the old keyword filter. All 131 genuine local-authority organizations in the CKAN catalog are now correctly isolated with zero remaining false positives (verified by listing every "council"/"borough"/"county"/etc.-matching title and manually checking each one). No other uncertainty to flag — proceeding to update FINDINGS.md with the re-measured numbers once the background run finishes.
 
-### 2.4. Process — reading the completed run and updating FINDINGS.md
+### 2.5. Process — reading the completed run and updating FINDINGS.md
 
 A background-task notification (not a user message) reported the census run complete. Claude read `council_join_rerun_output.txt`: of the full 131-organization population, 85 (64.9%) had no live CSV resource, 34 (26.0%) failed to fetch (mostly `403 Forbidden`, plus connection resets/timeouts, DNS failures, and one malformed-URL/decode error), 2 (1.5%) resolved to a broken link serving HTML, and 10 (7.6%) were successfully reached and parsed — of which only Pendle Borough Council carried a column mentioning VAT (`Irrecoverable VAT (N)`, the same accounting-flag column already documented, still empty across all 834 rows, still correctly excluded by the stricter VAT-registration-number column matcher), and none had a genuine VAT-registration-number column. Claude also noted, from the raw column headers in the output, that two of the ten successfully-parsed councils (Blaby District Council, Wirral Metropolitan Borough Council) had no real header row (`Unnamed: 0`, `Unnamed: 1`, ...) and one (Trafford Council) resolved to a metadata-description resource rather than actual transaction rows — a further data-quality wrinkle worth recording alongside the headline percentages.
 
 Claude rewrote the local council "Full validation" bullets in `FINDINGS.md` (lines 154-160 as edited in §1.4) to describe this as a full census of the corrected 131-organization population rather than a partial, potentially-biased sample, replacing every percentage with the newly-measured figures and adding the two-malformed-header/one-metadata-only nuance. Claude also updated Open Question #6's resolution text and added a new, separate Changelog entry documenting this session's fixes and the re-measured numbers (leaving the original Batch 2 changelog entry, which described the now-superseded 89-organization run, untouched as a historical record of what was believed at the time). Claude then deleted the temporary `council_join_rerun_output.txt` capture file and confirmed via `git status --short` that only the five intended files still carried changes.
 
-### Assistant response (verbatim)
+### 2.6 Assistant response (verbatim)
 
 > Done. Summary:
 >
 > **Root cause found:** `_NON_COUNCIL_ORG_KEYWORDS` in `ckan_utils.py` was missing four non-local-authority bodies whose names contain "Council" — the three FINDINGS.md already claimed were excluded (Higher Education Funding Council for England, Council for Healthcare Regulatory Excellence, General Social Care Council) plus one I found by manually listing every "council"-matching org title (Children's Workforce Development Council, a defunct DfE body). Fixed the list; verified with a full listing that all 131 remaining qualifying orgs are genuine local authorities, zero false positives left.
 >
 > **Re-run with the corrected sampler + exclusion list (full census, all 131 qualifying councils, not a subsample):**
+>
 > - 85/131 (64.9%) no live CSV resource
 > - 34/131 (26.0%) fetch failures (403s, timeouts, connection resets, DNS/decode errors)
 > - 2/131 (1.5%) broken links serving HTML
