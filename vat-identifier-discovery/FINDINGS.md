@@ -62,7 +62,7 @@ Per the `vat-source-validation` skill, every VAT number reported as a "match" ag
 
 ### 2. PEPPOL e-invoicing directory
 
-**Status:** `CONFIRMED` (originally `CANDIDATE` in Tier 1; reclassified to Tier 2 below on 2026-08-25 after validation showed the join key is `CompanyName`, not `CompanyNumber` as originally hypothesized — see Validation note and the Tier 2 entry for full detail, live match examples, hit-rate, and false-positive measurement.)
+**Status:** `CONFIRMED` (originally `CANDIDATE` in Tier 1; reclassified to Tier 2 below on 2026-08-26 after validation showed the join key is `CompanyName`, not `CompanyNumber` as originally hypothesized — see Validation note and the Tier 2 entry for full detail, live match examples, hit-rate, and false-positive measurement.)
 
 **Original hypothesis (2026-08-26 research pass):**
 
@@ -75,7 +75,7 @@ Per the `vat-source-validation` skill, every VAT number reported as a "match" ag
 - **Coverage:** UK businesses that invoice NHS/government electronically via PEPPOL — a specific, currently-growing slice.
 - **Access:** public REST API + bulk export, no per-site crawling.
 
-**Validation (2026-08-25/26) — corrects two parts of the hypothesis above, moved to Tier 2:**
+**Validation (2026-08-26) — corrects two parts of the hypothesis above, moved to Tier 2:**
 
 - **`9930` vs `9932` resolved:** `9932` is correct (`GB:VAT`, "United Kingdom VAT number"), confirmed against the authoritative Peppol EAS code list ([docs.peppol.eu/poacc/upgrade-3/codelist/eas/](https://docs.peppol.eu/poacc/upgrade-3/codelist/eas/)) and cross-checked in the raw v8.5 Peppol Code List HTML. `9930` is `DE:VAT` — Germany, not the UK.
 - **`0190` is wrong — it is NOT a UK Companies House scheme.** Direct inspection of the official Peppol ICD code list ([docs.peppol.eu/poacc/billing/3.0/codelist/ICD/](https://docs.peppol.eu/poacc/billing/3.0/codelist/ICD/), cross-checked in the raw v8.5 code list HTML) shows `0190` = `NL:OINO`, the **Dutch** "Organisatie-identificatienummer" (Netherlands). Searching the full code list for `GB:`-prefixed entries found only `GB:VAT` (9932) — **no Peppol scheme for UK Companies House numbers exists at all.** The full corrected entry, including why this breaks the exact-join premise entirely (each directory match carries only one participant ID, not a primary+additional-identifiers pair like OCDS), live match examples, hit-rate against the sample, and the measured false-positive rate, is now under Tier 2 below rather than here, since its real join-key strength is fuzzy `CompanyName`, not exact `CompanyNumber`.
@@ -101,7 +101,7 @@ Per the `vat-source-validation` skill, every VAT number reported as a "match" ag
 - **Structural (modulus-97/9755) checksum validation of the 106 matches: 105/106 valid.** The one failure is a genuine, informative false positive rather than a matching bug: sample `CompanyNumber` **17190246** (`ADVAYA CULTURE UK LTD`) had a PEPPOL "VAT" value of `17190246` — 8 digits, and *identical to its own Companies House company number*. This looks like a self-registration data-entry error on PEPPOL's side (CRN entered instead of VRN); the checksum check catches it automatically because a valid VRN must be 9 or 12 digits. **Measured false-positive rate: 1/106 ≈ 0.94%**, measured as "checksum fails despite a confident normalized-CompanyName match," on this 1,000-entity sample.
 - **HMRC confirmation status:** per the sandbox limitation documented under Adjacent tooling below, every real discovered VRN that wasn't rate-limited returned `404 NOT_FOUND` from the HMRC sandbox — expected, not a sign the numbers are invalid. Roughly half of the 106 sequential sandbox calls in this run also hit `429 MESSAGE_THROTTLED_OUT`; future large batches should add a delay/backoff between sandbox calls rather than firing them back-to-back.
 - **Join key:** `CompanyName` (fuzzy, whitespace-normalized) — corrected from the original `CompanyNumber` hypothesis.
-- **Coverage:** 21,502 GB registrations directory-wide; ~10.75% of a 1,000-entity sample joined to the Companies House sample, suggesting (not yet directly verified at full population scale) a match count in the low thousands if fully scanned.
+- **Coverage:** 21,502 GB registrations directory-wide; 106/986 (10.75%) of the first page-capped 1,000-entity sample joined to the Companies House sample. That sample is the API's default first page, not a random draw across the full 21,502, so this rate is not yet verified as representative — no full-population or low-thousands estimate is claimed here; see Open Questions for the query-splitting/bulk-export work needed before one could be.
 - **Access:** public REST API, no authentication, capped at 1,000 results per query — see Open Questions for full-population extraction strategy.
 
 ### 2. Central government "spend over £25k" transparency reports
