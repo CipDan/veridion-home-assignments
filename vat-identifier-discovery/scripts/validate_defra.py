@@ -84,9 +84,13 @@ def scan(n_months: int) -> None:
         df = read_spend_csv(csv_url)
         populated = df[VAT_COL].notna() & (df[VAT_COL].str.strip() != "")
         n_populated = int(populated.sum())
-        total_rows += len(df)
+        n_rows = len(df)
+        total_rows += n_rows
         total_populated += n_populated
-        print(f"{path}: {len(df)} rows, {n_populated} with populated {VAT_COL!r} ({n_populated / len(df):.1%})")
+        if n_rows == 0:
+            print(f"{path}: 0 rows -- nothing to report")
+        else:
+            print(f"{path}: {n_rows} rows, {n_populated} with populated {VAT_COL!r} ({n_populated / n_rows:.1%})")
 
     if total_rows == 0:
         print(f"\n{len(month_urls)} months scanned, but all publications had 0 rows -- no rate to report.")
@@ -149,9 +153,15 @@ def join(n_months: int) -> None:
     token = get_access_token()
     n_checksum_valid = 0
     n_foreign_prefix = 0
+    n_unsupported_format = 0
     n_postcode_agrees = 0
     seen_vrns = set()
     non_uk_prefixes = ("LU", "DE", "FR", "NL", "IE", "IT", "ES", "BE", "DK", "SE", "AT", "PL")
+    # Government department (GD) and health authority (HA) VRNs use a separate,
+    # non-checksummed HMRC numbering scheme -- is_valid_uk_vat_checksum always
+    # reports these as invalid (see its docstring), so they must be reported as
+    # an unsupported format rather than a checksum-invalid false positive.
+    unsupported_uk_prefixes = ("GD", "HA")
     for m in matches:
         raw_upper = m["vat_raw"].strip().upper()
         is_foreign_prefixed = raw_upper.startswith(non_uk_prefixes)
@@ -176,8 +186,12 @@ def join(n_months: int) -> None:
             print(f"Postcode agrees:      {postcode_agrees} (source={m['source_postcode']!r}, sample={m['sample_postcode']!r})")
             continue
 
+        is_unsupported_format = raw_upper.startswith(unsupported_uk_prefixes)
+        if is_unsupported_format:
+            n_unsupported_format += 1
+
         valid, style = is_valid_uk_vat_checksum(vrn)
-        if valid:
+        if valid and not is_unsupported_format:
             n_checksum_valid += 1
 
         if vrn in seen_vrns:
@@ -192,18 +206,26 @@ def join(n_months: int) -> None:
         print(f"DEFRA Supplier name:  {m['supplier']}")
         print(f"Source VAT (raw):     {m['vat_raw']}")
         print(f"Normalized VRN:       {vrn}")
-        print(f"Checksum valid:       {valid} ({style})")
+        if is_unsupported_format:
+            print("Checksum valid:       N/A -- unsupported GD/HA non-checksummed format")
+        else:
+            print(f"Checksum valid:       {valid} ({style})")
         print(f"Foreign-prefixed:     {is_foreign_prefixed}")
         print(f"Postcode agrees:      {postcode_agrees} (source={m['source_postcode']!r}, sample={m['sample_postcode']!r})")
         print(f"Sandbox response:     {sandbox}")
 
-        if not valid:
+        if is_unsupported_format:
+            print("  ^^ UNSUPPORTED: government department/health authority VRN -- HMRC uses a non-checksummed "
+                  "numbering scheme for these, so this is not a checksum false positive")
+        elif not valid:
             print("  ^^ FLAGGED: GB-context VRN that fails the checksum -- likely genuine false positive/data error")
 
-    n_uk_context = len(matches) - n_foreign_prefix
+    n_uk_context = len(matches) - n_foreign_prefix - n_unsupported_format
     n_uk_checksum_invalid = n_uk_context - n_checksum_valid
     print(f"\nTotal matched rows: {len(matches)} ({n_foreign_prefix} foreign-prefixed, e.g. AMAZON WEB SERVICES EMEA "
-          f"SARL's LU VAT -- excluded from the UK false-positive rate since they are not claiming to be UK VAT numbers)")
+          f"SARL's LU VAT -- excluded from the UK false-positive rate since they are not claiming to be UK VAT numbers; "
+          f"{n_unsupported_format} GD/HA government-department/health-authority VRNs -- unsupported non-checksummed "
+          f"format, also excluded)")
     print(f"Checksum valid: {n_checksum_valid}/{n_uk_context} GB-context matched rows")
     if n_uk_context:
         print(f"Of {n_uk_context} GB-context rows (foreign-prefixed excluded): "
