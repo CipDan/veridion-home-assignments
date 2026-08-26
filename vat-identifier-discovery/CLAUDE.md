@@ -35,19 +35,19 @@ You are currently working on the _vat-identifier-discovery_ project, which aims 
 Open the right doc for the task at hand:
 
 * _BasicCompanyData-2026-08-01-part1_7.csv_ - Your goto file for any sample-related work.
-* _FINDINGS.md_ - A living reference document tracking every candidate source for sourcing UK VAT numbers against the __Companies House__ sample. Always ensure that it has been updated by the end of each session, only when deemed to be required.
+* _FINDINGS.md_ - A living reference document tracking every candidate source for sourcing UK VAT numbers against the __Companies House__ sample. Update it by the end of each session only if that session produced new findings or changed an existing conclusion; if neither happened, no update is needed.
 
 ## Python Environment
 
 For this project, you are provided with a global 3.14.7 Python environment accessible through either the `python` or `py` commands. To check available modules, use `python -m pip list` or `py -m pip list` (for better processing of the data, the `pandas` module, version 3.0.5, is available among the global environment's modules).
 
-Since this version of Python is rather very new (Aug. 5, 2026), and your training data would certainly not include any references to its documentation, I am providing you the documentation page's link: [Python 3.14.7 documentation](https://docs.python.org/3/). That way, you can always come back to it whenever needed. Should you deem it necessary, you can add some summarized pointers into a `SKILL.md` file.
+Since this version of Python is rather very new (Aug. 5, 2026), and your training data would certainly not include any references to its documentation, I am providing you the documentation page's link: [Python 3.14.7 documentation](https://docs.python.org/3.14/). That way, you can always come back to it whenever needed. Should you deem it necessary, you can add some summarized pointers into a `SKILL.md` file.
 
 ## Source Validation
 
 In order to verify the validity of a source (mainly checking if any VAT values obtained from it are valid VAT numbers and that there is a valid and verifiable correspondence with any of the sample's entries), there are several options to consider:
 
-* The __HMRC VAT number checker API:__ Your main goto validation option. You can try using it through the [form webpage](https://www.tax.service.gov.uk/check-vat-number/enter-vat-details), or through its V2 API for authenticated, rate-limited repeated checks. Regarding the latter, I have created the necessary repository secrets - `HMRC_CLIENT_ID` and `HMRC_CLIENT_SECRET` - that are required to generate an access token to be used for the API calls; you only need to link them wherever you need to use them. For more information on how to use the API in the sandbox/test environment (since the production one would require applying for permission and waiting around 2 weeks for a response) and how to handle the authorization part, refer to the following links:
+* The __HMRC VAT number checker API:__ Your main goto validation option. You can try using it through the [form webpage](https://www.tax.service.gov.uk/check-vat-number/enter-vat-details), or through its V2 API for authenticated, rate-limited repeated checks. Regarding the latter, I have created the necessary repository secrets - `HMRC_CLIENT_ID` and `HMRC_CLIENT_SECRET` - that are required to generate an access token to be used for the API calls; you only need to link them wherever you need to use them. Any code you write must read these two values from the process environment at call time only, and must never copy, log, or commit them. Sandbox access requires registering an application on the HMRC Developer Hub, subscribing it to this API, and using the sandbox test credentials issued for it (since the production one would require applying for permission and waiting around 2 weeks for a response). For more information on how to use the API in the sandbox/test environment and how to handle the authorization part, refer to the following links:
   * [Check a UK VAT number API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-registered-companies-api/2.0);
   * [Check a UK VAT number (2.0) (OpenAPI docs)](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-registered-companies-api/2.0/oas/page);
   * [Reference guide](https://developer.service.hmrc.gov.uk/api-documentation/docs/reference-guide);
@@ -78,10 +78,8 @@ Public wordmark: __VAT Identifier Discovery__
 
 ## Communication
 
-Always be concise.
-
 * When finishing a research task, present your findings and any conclusions drawn throughout the execution of it in ample detail.
-* When completing a coding task, state "what changed" and "how to test it"  -- no filler.
+* When completing a coding task, state "what changed" and "how to test it"  -- no filler, just a concise answer.
 
 ---
 
