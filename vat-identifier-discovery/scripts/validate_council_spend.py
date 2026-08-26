@@ -47,9 +47,17 @@ def looks_like_html(columns: list[str]) -> bool:
     return any(col.strip().lower().startswith("<!doctype") or col.strip().lower().startswith("<html") for col in columns)
 
 
+VAT_REGISTRATION_KEYWORDS = ("vat registration", "vat number", "vrn")
+
+
 def find_vat_column(columns: list[str]) -> str | None:
+    """Match only explicit VAT-registration-number columns, not any column that
+    merely mentions VAT (e.g. 'Irrecoverable VAT (N)' is an accounting field,
+    not a VRN column -- it would otherwise poison normalization/HMRC checks).
+    """
     for col in columns:
-        if "vat" in col.lower():
+        lowered = col.lower()
+        if any(keyword in lowered for keyword in VAT_REGISTRATION_KEYWORDS):
             return col
     return None
 
@@ -138,7 +146,10 @@ def join(n: int) -> None:
                   f"column among {list(df.columns)} -- cannot join to sample, skipping.")
             continue
 
-        populated = df[df[vat_col].notna() & (df[vat_col].str.strip() != "")]
+        populated = df[
+            df[vat_col].notna() & (df[vat_col].str.strip() != "")
+            & df[supplier_col].notna() & (df[supplier_col].str.strip() != "")
+        ]
         print(f"\n{hit['council']}: {len(df)} rows, {len(populated)} with populated {vat_col!r}")
 
         for supplier, vat_raw in zip(populated[supplier_col], populated[vat_col]):

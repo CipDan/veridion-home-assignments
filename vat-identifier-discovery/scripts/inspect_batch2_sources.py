@@ -4,7 +4,7 @@ full validation pipeline. Run with: py -3.14 inspect_batch2_sources.py
 """
 
 import requests
-
+import json
 import gov_uk_utils
 import ckan_utils
 
@@ -46,6 +46,7 @@ def _report_vat_column_presence(dept_name: str, publication_path: str) -> None:
         return
     _, url = csv_urls[0]
     response = requests.get(url, timeout=30)
+    response.raise_for_status()
     text = response.content.decode("utf-8-sig", errors="replace")
     lines = text.splitlines()[:5]
     has_vat_column = any("vat" in line.lower() for line in lines)
@@ -104,5 +105,4 @@ def inspect_ckan_organization_schema() -> None:
 
 
 if __name__ == "__main__":
-    import json
     inspect_ckan_organization_schema()

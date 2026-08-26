@@ -69,7 +69,15 @@ def inspect() -> None:
 
 
 def scan(n_months: int) -> None:
+    if n_months <= 0:
+        print(f"n_months must be positive, got {n_months}")
+        return
+
     month_urls = get_defra_month_urls(n_months)
+    if not month_urls:
+        print("No DEFRA publications with a CSV attachment found -- nothing to scan.")
+        return
+
     total_rows = 0
     total_populated = 0
     for path, csv_url in month_urls:
@@ -79,6 +87,10 @@ def scan(n_months: int) -> None:
         total_rows += len(df)
         total_populated += n_populated
         print(f"{path}: {len(df)} rows, {n_populated} with populated {VAT_COL!r} ({n_populated / len(df):.1%})")
+
+    if total_rows == 0:
+        print(f"\n{len(month_urls)} months scanned, but all publications had 0 rows -- no rate to report.")
+        return
     print(f"\nTotal across {len(month_urls)} months: {total_rows} rows, {total_populated} populated "
           f"({total_populated / total_rows:.1%} population rate, {1 - total_populated / total_rows:.1%} blank rate)")
 
@@ -146,12 +158,27 @@ def join(n_months: int) -> None:
         if is_foreign_prefixed:
             n_foreign_prefix += 1
         vrn = normalize_vat_number(m["vat_raw"])
-        valid, style = is_valid_uk_vat_checksum(vrn)
-        if valid:
-            n_checksum_valid += 1
         postcode_agrees = bool(m["source_postcode"]) and m["source_postcode"] == m["sample_postcode"]
         if postcode_agrees:
             n_postcode_agrees += 1
+
+        if is_foreign_prefixed:
+            # Not a UK VRN -- exclude from the UK checksum count and skip the
+            # HMRC sandbox lookup, which only ever validates GB VAT numbers.
+            print("\n---")
+            print(f"Month:                {m['month']}")
+            print(f"Sample CompanyNumber: {m['sample_number']}")
+            print(f"Sample CompanyName:   {m['sample_name']}")
+            print(f"DEFRA Supplier name:  {m['supplier']}")
+            print(f"Source VAT (raw):     {m['vat_raw']}")
+            print(f"Normalized VRN:       {vrn}")
+            print(f"Foreign-prefixed:     {is_foreign_prefixed} (excluded from UK checksum count/HMRC lookup)")
+            print(f"Postcode agrees:      {postcode_agrees} (source={m['source_postcode']!r}, sample={m['sample_postcode']!r})")
+            continue
+
+        valid, style = is_valid_uk_vat_checksum(vrn)
+        if valid:
+            n_checksum_valid += 1
 
         if vrn in seen_vrns:
             continue  # avoid redundant sandbox calls for the same company across months
@@ -170,17 +197,20 @@ def join(n_months: int) -> None:
         print(f"Postcode agrees:      {postcode_agrees} (source={m['source_postcode']!r}, sample={m['sample_postcode']!r})")
         print(f"Sandbox response:     {sandbox}")
 
-        if not valid and not is_foreign_prefixed:
+        if not valid:
             print("  ^^ FLAGGED: GB-context VRN that fails the checksum -- likely genuine false positive/data error")
 
     n_uk_context = len(matches) - n_foreign_prefix
-    n_uk_checksum_invalid = len(matches) - n_checksum_valid - n_foreign_prefix
+    n_uk_checksum_invalid = n_uk_context - n_checksum_valid
     print(f"\nTotal matched rows: {len(matches)} ({n_foreign_prefix} foreign-prefixed, e.g. AMAZON WEB SERVICES EMEA "
           f"SARL's LU VAT -- excluded from the UK false-positive rate since they are not claiming to be UK VAT numbers)")
-    print(f"Checksum valid: {n_checksum_valid}/{len(matches)} matched rows overall")
-    print(f"Of {n_uk_context} GB-context rows (foreign-prefixed excluded): "
-          f"{n_uk_context - n_uk_checksum_invalid} valid, {n_uk_checksum_invalid} checksum-invalid "
-          f"({n_uk_checksum_invalid / n_uk_context:.1%} measured false-positive rate)")
+    print(f"Checksum valid: {n_checksum_valid}/{n_uk_context} GB-context matched rows")
+    if n_uk_context:
+        print(f"Of {n_uk_context} GB-context rows (foreign-prefixed excluded): "
+              f"{n_checksum_valid} valid, {n_uk_checksum_invalid} checksum-invalid "
+              f"({n_uk_checksum_invalid / n_uk_context:.1%} measured false-positive rate)")
+    else:
+        print("No GB-context rows among the matches -- nothing to compute a UK false-positive rate from.")
     print(f"Postcode agrees (disambiguation signal, NOT a false-positive indicator -- registered office often "
           f"differs from trading/invoicing address): {n_postcode_agrees}/{len(matches)} matched rows")
     print(f"Distinct VRNs sandbox-checked: {len(seen_vrns)}")
