@@ -164,7 +164,7 @@ Claude rewrote the local council "Full validation" bullets in `FINDINGS.md` (lin
 >
 > Updated FINDINGS.md (the Tier 2 local council section, Open Question #6, and Changelog) with these verified numbers and a note on both fixes. No remaining ambiguity — the docs snapshot file was left untouched per your earlier instruction.
 
-### 2.5. Files created and edited
+### 2.7. Files created and edited
 
 - `vat-identifier-discovery/scripts/ckan_utils.py` — pre-existing, edited further: `_NON_COUNCIL_ORG_KEYWORDS` gained four missing entries (Higher Education Funding Council for England, Council for Healthcare Regulatory Excellence, General Social Care Council, Children's Workforce Development Council).
 - `vat-identifier-discovery/scripts/inspect_batch2_sources.py` — pre-existing one-off driver, edited further: new `list_council_keyword_organizations()` function added to manually audit the full accepted/excluded organization-title split.

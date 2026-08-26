@@ -28,11 +28,24 @@ SAMPLE_CSV = "../BasicCompanyData-2026-08-01-part1_7.csv"
 SEED = 26082026  # today's date, for a reproducible-but-arbitrary random sample
 
 
-def read_council_csv(url: str) -> pd.DataFrame:
+def read_council_csv(url: str) -> tuple[pd.DataFrame, int]:
+    """Read a council CSV, returning (dataframe, malformed_rows_skipped) so
+    callers can flag a result as incomplete instead of silently treating a
+    partially-parsed file as fully validated.
+    """
+    skipped = 0
+
+    def _count_bad_line(bad_line: list[str]) -> None:
+        nonlocal skipped
+        skipped += 1
+        return None
+
     try:
-        return pd.read_csv(url, dtype="string", encoding="utf-8-sig", on_bad_lines="skip")
+        df = pd.read_csv(url, dtype="string", encoding="utf-8-sig", on_bad_lines=_count_bad_line, engine="python")
     except UnicodeDecodeError:
-        return pd.read_csv(url, dtype="string", encoding="cp1252", on_bad_lines="skip")
+        skipped = 0  # discard any count from the aborted utf-8-sig attempt
+        df = pd.read_csv(url, dtype="string", encoding="cp1252", on_bad_lines=_count_bad_line, engine="python")
+    return df, skipped
 
 
 def safe_print(text: str) -> None:
@@ -48,15 +61,20 @@ def looks_like_html(columns: list[str]) -> bool:
 
 
 VAT_REGISTRATION_KEYWORDS = ("vat registration", "vat number", "vrn")
+VAT_NON_IDENTIFIER_KEYWORDS = ("status", "rate", "amount")
 
 
 def find_vat_column(columns: list[str]) -> str | None:
     """Match only explicit VAT-registration-number columns, not any column that
     merely mentions VAT (e.g. 'Irrecoverable VAT (N)' is an accounting field,
-    not a VRN column -- it would otherwise poison normalization/HMRC checks).
+    not a VRN column -- it would otherwise poison normalization/HMRC checks),
+    nor a VAT-adjacent status/rate/amount field (e.g. 'VAT registration status',
+    'VRN status') that isn't itself an identifier.
     """
     for col in columns:
         lowered = col.lower()
+        if any(keyword in lowered for keyword in VAT_NON_IDENTIFIER_KEYWORDS):
+            continue
         if any(keyword in lowered for keyword in VAT_REGISTRATION_KEYWORDS):
             return col
     return None
@@ -82,6 +100,7 @@ def survey(n: int) -> list[dict]:
     n_fetch_failed = 0
     n_html_not_csv = 0
     n_with_vat_column = 0
+    n_with_skipped_rows = 0
     results = []
     for pkg in packages:
         council_name = pkg.get("organization", {}).get("title", "?")
@@ -91,8 +110,12 @@ def survey(n: int) -> list[dict]:
             n_no_csv += 1
             continue
         name, url = resource
+        if not url.lower().startswith("https://"):
+            safe_print(f"{council_name}: resource URL is not HTTPS ({url!r}) -- skipping for transport security")
+            n_no_csv += 1
+            continue
         try:
-            df = read_council_csv(url)
+            df, n_skipped_rows = read_council_csv(url)
         except Exception as exc:
             safe_print(f"{council_name}: fetch/parse failed ({type(exc).__name__}: {exc})")
             n_fetch_failed += 1
@@ -104,13 +127,21 @@ def survey(n: int) -> list[dict]:
         vat_col = find_vat_column(list(df.columns))
         if vat_col is not None:
             n_with_vat_column += 1
-        safe_print(f"{council_name}: resource={name!r} rows={len(df)} VAT column={vat_col!r} | columns={list(df.columns)}")
-        results.append({"council": council_name, "url": url, "vat_column": vat_col, "df": df})
+        if n_skipped_rows:
+            n_with_skipped_rows += 1
+        skip_note = f", {n_skipped_rows} malformed row(s) skipped -- result may be incomplete" if n_skipped_rows else ""
+        safe_print(f"{council_name}: resource={name!r} rows={len(df)}{skip_note} VAT column={vat_col!r} | columns={list(df.columns)}")
+        results.append({
+            "council": council_name, "url": url, "vat_column": vat_col, "df": df, "skipped_rows": n_skipped_rows,
+        })
 
     n_checked = len(packages) - n_no_csv - n_fetch_failed - n_html_not_csv
     print(f"\n{len(packages)} distinct councils sampled: {n_no_csv} with no live CSV resource, "
           f"{n_fetch_failed} fetch/parse failures, {n_html_not_csv} broken links serving HTML instead of CSV, "
           f"{n_checked} successfully checked")
+    if n_with_skipped_rows:
+        print(f"Warning: {n_with_skipped_rows} of {n_checked} checked council CSV(s) had malformed rows skipped "
+              f"while parsing -- those results are incomplete, not fully validated")
     if n_checked:
         print(f"Of the {n_checked} checked, {n_with_vat_column} have a VAT-like column "
               f"({n_with_vat_column / n_checked:.1%})")
@@ -135,7 +166,7 @@ def join(n: int) -> None:
 
     print(f"\n{len(hits)} council(s) with a VAT column found -- extracting and joining to sample CSV.")
     sample_lookup = load_sample_lookup()
-    token = get_access_token()
+    token: str | None = None  # acquired lazily -- only if a value actually needs the HMRC sandbox
 
     # Same classification as validate_defra.py's join(): any non-GB/XI prefixed
     # value isn't a UK VAT number at all (skip checksum/sandbox), and GD/HA-
@@ -153,6 +184,10 @@ def join(n: int) -> None:
             print(f"\n{hit['council']}: has a VAT column ({vat_col!r}) but no recognizable supplier-name "
                   f"column among {list(df.columns)} -- cannot join to sample, skipping.")
             continue
+
+        if hit.get("skipped_rows"):
+            print(f"\n{hit['council']}: warning -- {hit['skipped_rows']} malformed row(s) were skipped while "
+                  f"parsing this CSV; join results below may be incomplete.")
 
         populated = df[
             df[vat_col].notna() & (df[vat_col].str.strip() != "")
@@ -184,6 +219,8 @@ def join(n: int) -> None:
                 continue
 
             valid, style = is_valid_uk_vat_checksum(vrn)
+            if token is None:
+                token = get_access_token()
             sandbox = check_vat_number(vrn, token)
             print(f"Checksum valid:       {valid} ({style})")
             print(f"Sandbox response:     {sandbox}")

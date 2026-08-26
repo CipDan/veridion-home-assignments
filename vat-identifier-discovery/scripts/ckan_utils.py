@@ -16,7 +16,7 @@ def package_search(query: str, rows: int = 20, start: int = 0) -> dict:
     """Run a CKAN package_search query, returning the raw 'result' object (count + results)."""
     response = requests.get(
         f"{CKAN_API_BASE}/package_search",
-        params={"q": query, "rows": rows, "start": start},
+        params={"q": query, "rows": str(rows), "start": str(start)},
         timeout=30,
     )
     response.raise_for_status()
