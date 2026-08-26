@@ -111,11 +111,19 @@ def load_sample_lookup() -> dict[str, tuple[str, str, str]]:
 
 
 def join(n_months: int) -> None:
+    if n_months <= 0:
+        print(f"n_months must be positive, got {n_months}")
+        return
+
     print("Loading sample CSV CompanyName lookup...")
     sample_lookup = load_sample_lookup()
     print(f"Sample lookup size: {len(sample_lookup)}")
 
     month_urls = get_defra_month_urls(n_months)
+    if not month_urls:
+        print("No DEFRA publications with a CSV attachment found -- nothing to join.")
+        return
+
     total_rows = 0
     total_populated = 0
     matches = []
@@ -141,6 +149,10 @@ def join(n_months: int) -> None:
                     "sample_name": sample_hit[1],
                     "sample_postcode": sample_hit[2],
                 })
+
+    if total_rows == 0:
+        print(f"\n{len(month_urls)} months scanned, but all publications had 0 rows -- nothing to join.")
+        return
 
     print(f"\n{len(month_urls)} months, {total_rows} rows, {total_populated} with populated VAT "
           f"({total_populated / total_rows:.1%})")

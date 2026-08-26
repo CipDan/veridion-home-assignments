@@ -45,6 +45,18 @@ def random_sample_packages(query: str, n: int, seed: int) -> list[dict]:
     return packages
 
 
+def get_all_packages(query: str, page_size: int = 100) -> list[dict]:
+    """Fetch every dataset record matching a CKAN query, paginated."""
+    total = get_total_count(query)
+    packages = []
+    start = 0
+    while start < total:
+        result = package_search(query, rows=page_size, start=start)
+        packages.extend(result["results"])
+        start += page_size
+    return packages
+
+
 def get_csv_resource_urls(package: dict) -> list[tuple[str, str]]:
     """Return (name, url) for every CSV resource attached to a CKAN dataset record."""
     resources = package.get("resources", [])
@@ -67,6 +79,10 @@ _NON_COUNCIL_ORG_KEYWORDS = (
     "met office",
     "sport england",
     "national trust",
+    "higher education funding council",
+    "council for healthcare regulatory excellence",
+    "general social care council",
+    "children's workforce development council",
 )
 
 
@@ -87,35 +103,32 @@ def is_local_council(package: dict) -> bool:
 
 
 def random_sample_distinct_organizations(
-    query: str, n: int, seed: int, organization_filter=None, max_draws: int = 300
+    query: str, n: int, seed: int, organization_filter=None
 ) -> list[dict]:
-    """Randomly sample up to n dataset records with distinct publishing organizations.
+    """Randomly sample up to n dataset records with distinct publishing organizations,
+    drawn uniformly from the full population of qualifying organizations.
 
     A plain random_sample_packages() draw can return the same council multiple
     times (many councils publish several dataset entries, e.g. current +
-    archived). This keeps drawing random offsets (up to max_draws) until n
-    distinct organizations are found or the draw pool is exhausted.
+    archived), and sampling random package offsets with on-the-fly dedup would
+    weight the result by how many datasets each organization happens to
+    publish rather than sampling councils on equal footing. Instead, this
+    fetches every matching dataset once, reduces to one representative record
+    per distinct (optionally filtered) organization, then samples n of those
+    organizations uniformly at random.
     """
-    total = get_total_count(query)
-    rng = random.Random(seed)
-    offsets = rng.sample(range(total), k=min(max_draws, total))
-    seen_org_ids = set()
-    packages = []
-    for offset in offsets:
-        if len(packages) >= n:
-            break
-        result = package_search(query, rows=1, start=offset)
-        if not result["results"]:
-            continue
-        package = result["results"][0]
+    all_packages = get_all_packages(query)
+    by_org_id: dict[str, dict] = {}
+    for package in all_packages:
         if organization_filter is not None and not organization_filter(package):
             continue
         org_id = package.get("organization", {}).get("id")
-        if org_id in seen_org_ids:
+        if org_id is None or org_id in by_org_id:
             continue
-        seen_org_ids.add(org_id)
-        packages.append(package)
-    return packages
+        by_org_id[org_id] = package
+    distinct_packages = list(by_org_id.values())
+    rng = random.Random(seed)
+    return rng.sample(distinct_packages, k=min(n, len(distinct_packages)))
 
 
 def get_best_csv_resource(package: dict) -> tuple[str, str] | None:

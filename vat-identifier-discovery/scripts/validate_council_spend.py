@@ -137,6 +137,14 @@ def join(n: int) -> None:
     sample_lookup = load_sample_lookup()
     token = get_access_token()
 
+    # Same classification as validate_defra.py's join(): non-GB prefixed values
+    # aren't UK VAT numbers at all (skip checksum/sandbox), and GD/HA-prefixed
+    # values use HMRC's separate non-checksummed government/health-authority
+    # numbering scheme, so is_valid_uk_vat_checksum would always misreport them
+    # as invalid.
+    non_uk_prefixes = ("LU", "DE", "FR", "NL", "IE", "IT", "ES", "BE", "DK", "SE", "AT", "PL")
+    unsupported_uk_prefixes = ("GD", "HA")
+
     for hit in hits:
         df = hit["df"]
         vat_col = hit["vat_column"]
@@ -157,9 +165,8 @@ def join(n: int) -> None:
             sample_hit = sample_lookup.get(key)
             if not sample_hit:
                 continue
+            raw_upper = vat_raw.strip().upper()
             vrn = normalize_vat_number(vat_raw)
-            valid, style = is_valid_uk_vat_checksum(vrn)
-            sandbox = check_vat_number(vrn, token)
             print("\n---")
             print(f"Council:              {hit['council']}")
             print(f"Sample CompanyNumber: {sample_hit[0]}")
@@ -167,6 +174,16 @@ def join(n: int) -> None:
             print(f"Source Supplier name: {supplier}")
             print(f"Source VAT (raw):     {vat_raw}")
             print(f"Normalized VRN:       {vrn}")
+
+            if raw_upper.startswith(non_uk_prefixes):
+                print("Checksum valid:       N/A -- non-GB prefixed, not a UK VAT number (HMRC sandbox not called)")
+                continue
+            if raw_upper.startswith(unsupported_uk_prefixes):
+                print("Checksum valid:       N/A -- unsupported GD/HA non-checksummed format (HMRC sandbox not called)")
+                continue
+
+            valid, style = is_valid_uk_vat_checksum(vrn)
+            sandbox = check_vat_number(vrn, token)
             print(f"Checksum valid:       {valid} ({style})")
             print(f"Sandbox response:     {sandbox}")
 

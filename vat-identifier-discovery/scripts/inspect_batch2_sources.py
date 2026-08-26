@@ -104,5 +104,58 @@ def inspect_ckan_organization_schema() -> None:
         }, indent=2))
 
 
+def count_distinct_council_organizations() -> None:
+    """After reworking random_sample_distinct_organizations() to sample from a
+    full distinct-organization frame instead of deduplicated package offsets,
+    confirm how large that qualifying-organization population actually is.
+    """
+    all_packages = ckan_utils.get_all_packages("council spend over 500")
+    print(f"Total datasets for 'council spend over 500': {len(all_packages)}")
+    by_org_id = {}
+    for package in all_packages:
+        if not ckan_utils.is_local_council(package):
+            continue
+        org_id = package.get("organization", {}).get("id")
+        if org_id is None or org_id in by_org_id:
+            continue
+        by_org_id[org_id] = package
+    print(f"Distinct qualifying council organizations: {len(by_org_id)}")
+
+
+def list_council_keyword_organizations() -> None:
+    """List every distinct organization title that contains one of
+    is_local_council()'s inclusion keywords, split into what the filter
+    currently accepts vs. excludes -- a manual check for non-council bodies
+    the exclusion list still misses (like the Higher Education Funding
+    Council for England gap found in review).
+    """
+    all_packages = ckan_utils.get_all_packages("council spend over 500")
+    inclusion_keywords = ("council", "borough", "county", "unitary", "combined authority")
+    seen_titles: set[str] = set()
+    accepted = set()
+    excluded = set()
+    for package in all_packages:
+        title = (package.get("organization", {}) or {}).get("title", "")
+        if not title or title in seen_titles:
+            continue
+        seen_titles.add(title)
+        if not any(keyword in title.lower() for keyword in inclusion_keywords):
+            continue
+        if ckan_utils.is_local_council(package):
+            accepted.add(title)
+        else:
+            excluded.add(title)
+    print(f"Accepted as local council ({len(accepted)}):")
+    for title in sorted(accepted):
+        safe_print_title = title.encode("ascii", errors="replace").decode("ascii")
+        print(f"  {safe_print_title}")
+    print(f"\nExcluded as non-council ({len(excluded)}):")
+    for title in sorted(excluded):
+        safe_print_title = title.encode("ascii", errors="replace").decode("ascii")
+        print(f"  {safe_print_title}")
+
+
 if __name__ == "__main__":
-    inspect_ckan_organization_schema()
+    list_council_keyword_organizations()
+    print()
+    count_distinct_council_organizations()
