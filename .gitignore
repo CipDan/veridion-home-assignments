@@ -6,3 +6,10 @@ vat-identifier-discovery/.env*
 
 # Claude settings for local projects
 .claude/settings.local.json
+
+# Cached bulk data downloads (reproducible from their source URLs, large)
+vat-identifier-discovery/scripts/*.jsonl.gz
+
+# Python bytecode cache
+__pycache__/
+*.pyc
