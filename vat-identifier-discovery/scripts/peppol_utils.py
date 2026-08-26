@@ -76,7 +76,7 @@ def iter_all_results(query: str = "", max_pages: int | None = None, **params: st
     name prefix) or use the Directory's bulk export feature to get the rest.
     """
     page_size = int(params.get("resultPageCount", PAGE_SIZE))
-    max_result_pages = MAX_RESULT_COUNT // page_size
+    max_result_pages = -(-MAX_RESULT_COUNT // page_size)  # ceiling division
 
     page_index = 0
     total_result_count: int | None = None
