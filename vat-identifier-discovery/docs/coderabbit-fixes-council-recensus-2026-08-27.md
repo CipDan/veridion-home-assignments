@@ -198,7 +198,7 @@ Claude rewrote the local council "Full validation" sub-bullets (the 85/34/2/10 b
 > | Successfully parsed | 10 (7.6%) | 8 (6.1%) |
 > | Genuine VAT-registration column found | 0 | 0 |
 >
-> The shift is fully explained by the new HTTPS-only check: 24 councils that were previously fetched over plain `http://` are now correctly excluded rather than fetched insecurely, moving from the fetch-failed/HTML/parsed buckets into "no live/secure CSV." Overall unreachability rose from 92.4% to 93.9%. The substantive conclusion is **unchanged**: zero of the reachable councils (8, down from 10 — Blaby, Wirral, Trafford, Pendle, Plymouth, South Lakeland, Eden, Stockport) had a genuine VAT-registration-number column; CKAN remains an impractical bulk-discovery route.
+> The shift is fully explained by the new HTTPS-only check: 24 councils that were previously fetched over plain `http://` are now correctly excluded rather than fetched insecurely, moving from the fetch-failed/HTML/parsed buckets into "no live/secure CSV." The overall share not successfully usable through CKAN (no live/secure CSV, fetch failure, or a resolved-but-invalid HTML page in place of a CSV) rose from 92.4% to 93.9%. The substantive conclusion is **unchanged**: zero of the reachable councils (8, down from 10 — Blaby, Wirral, Trafford, Pendle, Plymouth, South Lakeland, Eden, Stockport) had a genuine VAT-registration-number column; CKAN remains an impractical bulk-discovery route.
 >
 > Updated `FINDINGS.md` (the Full validation bullets with the new figures, plus a new 2026-08-27 changelog entry documenting both the code fixes and the re-measurement) and deleted the temporary capture file. `git status` confirms only the 4 intended files carry changes.
 
