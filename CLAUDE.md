@@ -5,6 +5,7 @@
 ### VAT Identifier Discovery
 
 Project folder: _vat-identifier-discovery_
+
 Project-specific CLAUDE.md file: _vat-identifier-discovery/CLAUDE.md_
 
 ## Guidelines
