@@ -137,12 +137,12 @@ def join(n: int) -> None:
     sample_lookup = load_sample_lookup()
     token = get_access_token()
 
-    # Same classification as validate_defra.py's join(): non-GB prefixed values
-    # aren't UK VAT numbers at all (skip checksum/sandbox), and GD/HA-prefixed
-    # values use HMRC's separate non-checksummed government/health-authority
-    # numbering scheme, so is_valid_uk_vat_checksum would always misreport them
-    # as invalid.
-    non_uk_prefixes = ("LU", "DE", "FR", "NL", "IE", "IT", "ES", "BE", "DK", "SE", "AT", "PL")
+    # Same classification as validate_defra.py's join(): any non-GB/XI prefixed
+    # value isn't a UK VAT number at all (skip checksum/sandbox), and GD/HA-
+    # prefixed values use HMRC's separate non-checksummed government/health-
+    # authority numbering scheme, so is_valid_uk_vat_checksum would always
+    # misreport them as invalid.
+    uk_prefixes = ("GB", "XI")
     unsupported_uk_prefixes = ("GD", "HA")
 
     for hit in hits:
@@ -175,11 +175,12 @@ def join(n: int) -> None:
             print(f"Source VAT (raw):     {vat_raw}")
             print(f"Normalized VRN:       {vrn}")
 
-            if raw_upper.startswith(non_uk_prefixes):
-                print("Checksum valid:       N/A -- non-GB prefixed, not a UK VAT number (HMRC sandbox not called)")
-                continue
             if raw_upper.startswith(unsupported_uk_prefixes):
                 print("Checksum valid:       N/A -- unsupported GD/HA non-checksummed format (HMRC sandbox not called)")
+                continue
+            prefix = raw_upper[:2]
+            if prefix.isalpha() and prefix not in uk_prefixes:
+                print("Checksum valid:       N/A -- non-GB prefixed, not a UK VAT number (HMRC sandbox not called)")
                 continue
 
             valid, style = is_valid_uk_vat_checksum(vrn)

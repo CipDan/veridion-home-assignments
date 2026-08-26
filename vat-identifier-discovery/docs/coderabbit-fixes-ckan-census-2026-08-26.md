@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This is a historical narrative record of the session in which five CodeRabbit review findings against Batch 2 tooling — a DEFRA month-scope inconsistency in `FINDINGS.md`, a biased CKAN organization sampler in `ckan_utils.py`, a missing non-GB/GD-HA classification step in `validate_council_spend.py`, and missing `n_months`/empty-result guards in `validate_defra.py` — were verified against live behavior and fixed. It also covers a follow-up investigation the fix surfaced (a gap in the council title-keyword exclusion list letting non-council bodies through) and the full re-measurement of the local council CKAN check that followed, once sampling uniformly over the corrected organization population was possible.
+This is a historical narrative record of the session in which four CodeRabbit review findings against Batch 2 tooling — a DEFRA month-scope inconsistency in `FINDINGS.md`, a biased CKAN organization sampler in `ckan_utils.py`, a missing non-GB/GD-HA classification step in `validate_council_spend.py`, and missing `n_months`/empty-result guards in `validate_defra.py` — were verified against live behavior and fixed. It also covers a follow-up investigation the fix surfaced (a gap in the council title-keyword exclusion list letting non-council bodies through) and the full re-measurement of the local council CKAN check that followed, once sampling uniformly over the corrected organization population was possible.
 
 User prompts and assistant prose responses are reproduced **verbatim**, including all tables, lists, and formatting exactly as written. Tool activity (searches run, pages fetched, commands executed, files sampled, scripts run) is **narrated in prose** around those verbatim exchanges rather than logged call-by-call. Where a file was created during the session, it is referenced by path at the point of its creation rather than having its contents duplicated here — see the referenced file itself for that detail, or note where it was later deleted. Tool-call rejections from the user (this session's harness surfaces these as rejected tool-use events with a reason) are treated as verbatim user feedback, since that is functionally what they are.
 
 ---
 
-## 1. Task kickoff — five CodeRabbit findings across four files
+## 1. Task kickoff — four CodeRabbit findings across four files
 
 ### 1.1. User prompt (verbatim)
 
@@ -56,7 +56,7 @@ User prompts and assistant prose responses are reproduced **verbatim**, includin
 
 ### 1.2. Process — reading context, no clarification needed
 
-Claude read `FINDINGS.md` around the cited lines, `docs/tier2-batch-validation-2026-08-26.md` in full, and the three named scripts (`ckan_utils.py`, `validate_council_spend.py`, `validate_defra.py`) before making any change, per the finding text's own instruction to verify against current code rather than trust it outright. All five findings turned out to describe real, checkable conditions, so no clarifying question was raised at the outset.
+Claude read `FINDINGS.md` around the cited lines, `docs/tier2-batch-validation-2026-08-26.md` in full, and the three named scripts (`ckan_utils.py`, `validate_council_spend.py`, `validate_defra.py`) before making any change, per the finding text's own instruction to verify against current code rather than trust it outright. All four findings turned out to describe real, checkable conditions, so no clarifying question was raised at the outset.
 
 ### 1.3. Process — verifying and reconciling the DEFRA month-scope finding
 
