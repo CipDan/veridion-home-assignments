@@ -238,8 +238,9 @@ Claude then ran `mypy` across the four new/edited scripts in the project's estab
 > `Organization_domain_stats.csv` gave the `vatID` hit-rate directly (0.129% of all domains, 0.216% of `.uk` domains — 272 domains) without touching the 488GB corpus. After extracting those 272 domains' data across 230 part files: **27 distinct checksum-valid matches (0% false-positive rate)** — but **24 of the 27 trace to one third-party site, `companiesintheuk.co.uk`**, a Companies House data mirror, not to companies' own sites as the original hypothesis assumed. Confirmed live and logged as a new standalone candidate. Only 3 matches look like genuine self-disclosure. Resolves Open Question #3.
 >
 > **Process fixes made mid-batch (per your request):**
-> - Checkpointing (atomic JSON write after each part file) + immediate deletion, so at most one ~150-300MB file sits on disk and an interruption loses nothing — this is what let the paused run resume cleanly.
-> - Caught a second real bug on inspection: one match (`ABBERTON CAR SALES LTD`) was printed 33 times because repeated schema.org markup across a site's pages creates a new RDF blank-node per page. Fixed by deduplicating to one match per (CompanyNumber, vatID) pair.
+>
+> * Checkpointing (atomic JSON write after each part file) + immediate deletion, so at most one ~150-300MB file sits on disk and an interruption loses nothing — this is what let the paused run resume cleanly.
+> * Caught a second real bug on inspection: one match (`ABBERTON CAR SALES LTD`) was printed 33 times because repeated schema.org markup across a site's pages creates a new RDF blank-node per page. Fixed by deduplicating to one match per (CompanyNumber, vatID) pair.
 >
 > `FINDINGS.md` is fully updated (both entries, the new candidate, both changelog entries, both Open Questions resolved), and all new scripts (`wdc_utils.py`, `ch_accounts_utils.py`, `validate_web_data_commons.py`, `validate_ch_accounts.py`) are mypy-clean at the project's existing baseline. Large working files (bulk CSVs, the CH zip, the checkpoint) are gitignored and untracked, confirmed via `git status`.
 
