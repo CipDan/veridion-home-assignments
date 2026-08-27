@@ -113,7 +113,7 @@ def join(max_domains: int | None) -> None:
     print(f"Part files needed: {len(needed_parts)} distinct file(s) for {len(target_domains)} domain(s) "
           f"-- each is downloaded, scanned, checkpointed, then deleted, so at most one sits on disk at a time")
 
-    processed_parts, entities = wdc_utils.load_checkpoint(CHECKPOINT_PATH)
+    processed_parts, entities = wdc_utils.load_checkpoint(CHECKPOINT_PATH, target_domains)
     remaining_parts = [p for p in needed_parts if p not in processed_parts]
     if processed_parts:
         print(f"Resuming from checkpoint: {len(processed_parts)} part file(s) already done, "
@@ -130,7 +130,7 @@ def join(max_domains: int | None) -> None:
         entities.update(wdc_utils.extract_entities_for_domains(part_path, domains_in_this_part))
 
         processed_parts.add(part_name)
-        wdc_utils.save_checkpoint(CHECKPOINT_PATH, processed_parts, entities)
+        wdc_utils.save_checkpoint(CHECKPOINT_PATH, target_domains, processed_parts, entities)
         os.remove(part_path)
         print(f"Checkpointed ({len(processed_parts)}/{len(needed_parts)} parts done, "
               f"{len(entities)} entities so far) and removed {part_path}")
@@ -178,8 +178,9 @@ def join(max_domains: int | None) -> None:
     deduped_by_key: dict[tuple[str, str], dict] = {}
     vat_values_per_company: dict[str, set[str]] = {}
     for m in matches:
-        deduped_by_key.setdefault((m["sample_number"], m["vatid_raw"]), m)
-        vat_values_per_company.setdefault(m["sample_number"], set()).add(m["vatid_raw"])
+        vrn = normalize_vat_number(m["vatid_raw"])
+        deduped_by_key.setdefault((m["sample_number"], vrn), m)
+        vat_values_per_company.setdefault(m["sample_number"], set()).add(vrn)
     matches = list(deduped_by_key.values())
     print(f"Distinct (CompanyNumber, vatID) pairs after collapsing repeated extractions: {len(matches)}")
 

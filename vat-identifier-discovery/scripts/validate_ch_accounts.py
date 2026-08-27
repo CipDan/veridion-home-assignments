@@ -85,7 +85,7 @@ def scan(date: str) -> list[dict]:
         for hit in find_vat_mentions(text):
             all_hits.append({"company_number": number, "member_name": member_name, **hit})
 
-    n_filings_with_hit = len({h["company_number"] for h in all_hits})
+    n_filings_with_hit = len({h["member_name"] for h in all_hits})
     print(f"Filings with >=1 VAT mention: {n_filings_with_hit}/{len(entries)} "
           f"({n_filings_with_hit / len(entries):.2%})")
     print(f"Total VAT-mention matches (a filing can have more than one): {len(all_hits)}")
@@ -115,7 +115,7 @@ def join(date: str) -> None:
         for hit in find_vat_mentions(text):
             hits.append({"company_number": number, "member_name": member_name, **hit})
 
-    n_filings_with_hit = len({h["company_number"] for h in hits})
+    n_filings_with_hit = len({h["member_name"] for h in hits})
     print(f"Sample-matched filings with >=1 VAT mention: {n_filings_with_hit}/{len(matched_entries)} "
           f"({n_filings_with_hit / len(matched_entries):.2%})")
 

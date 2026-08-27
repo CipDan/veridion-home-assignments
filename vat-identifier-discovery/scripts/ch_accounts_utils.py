@@ -18,7 +18,9 @@ a free-text search over the rendered document is the only way to find one.
 from __future__ import annotations
 
 import html
+import os
 import re
+import tempfile
 import zipfile
 from collections.abc import Iterator
 
@@ -35,9 +37,13 @@ _WHITESPACE_RE = re.compile(r"\s+")
 # keyword (mandatory -- this is what excludes an unrelated mention like
 # "input VAT of 123456789"), then tolerates prose connecting the keyword to
 # the value itself ("is", "was", "of", ":", "-", or nothing), then a 9-digit
-# number, optionally GB-prefixed.
+# number (optionally GB-prefixed) with an optional 3-digit branch/group
+# suffix for 12-digit VRNs. The trailing (?!\d) stops a longer digit run
+# (e.g. a 10+ digit number) from being partially captured as a 9- or
+# 12-digit match.
 VAT_MENTION_RE = re.compile(
-    r"VAT\s*(?:REGISTRATION|REG\.?|NUMBER|NO)\.?\s*(?:NUMBER|NO\.?)?\s*(?:IS|WAS|OF|:|-)?\s*(GB\s?\d{9}|\d{9})",
+    r"VAT\s*(?:REGISTRATION|REG\.?|NUMBER|NO)\.?\s*(?:NUMBER|NO\.?)?\s*(?:IS|WAS|OF|:|-)?\s*"
+    r"(GB\s?\d{9}(?:\s?\d{3})?|\d{9}(?:\s?\d{3})?)(?!\d)",
     re.IGNORECASE,
 )
 
@@ -52,13 +58,25 @@ def contains_vat_word(text: str) -> bool:
 
 
 def download_daily_zip(date: str, dest_path: str) -> None:
-    """Download one day's bulk accounts ZIP (date format YYYY-MM-DD)."""
+    """Download one day's bulk accounts ZIP (date format YYYY-MM-DD).
+
+    Streams into a temp file in the same directory and atomically renames it
+    into place only once the download completes successfully -- so a crash
+    or interruption partway through can't leave a partial ZIP that
+    ensure_zip() would mistake for a complete, already-downloaded one.
+    """
     url = DAILY_URL_TEMPLATE.format(date=date)
-    with requests.get(url, stream=True, timeout=60) as response:
-        response.raise_for_status()
-        with open(dest_path, "wb") as f:
+    dest_dir = os.path.dirname(dest_path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dest_dir)
+    try:
+        with os.fdopen(fd, "wb") as f, requests.get(url, stream=True, timeout=60) as response:
+            response.raise_for_status()
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 f.write(chunk)
+        os.replace(tmp_path, dest_path)
+    except BaseException:
+        os.remove(tmp_path)
+        raise
 
 
 def iter_company_numbers_in_zip(zip_path: str) -> Iterator[tuple[str, str]]:
@@ -99,11 +117,26 @@ def find_vat_mentions(text: str, context_chars: int = 60) -> list[dict]:
 
 
 if __name__ == "__main__":
+    from hmrc_vat_check import is_valid_uk_vat_checksum, normalize_vat_number
+
     samples = [
         "The company's VAT registration number is GB123456789.",
         "VAT Reg No: 123456789",
         "VAT number GB 123456789 is shown on all invoices.",
         "Input VAT of 123456789 was reclaimed in the period.",  # should NOT match (no reg/no/number phrasing)
+        "VAT registration number is GB553557881001.",  # 12-digit VRN (9-digit + branch/group suffix)
+        "VAT Reg No: 553557881 001",  # 12-digit VRN with a space before the suffix
+        "VAT number 5535578810012 has too many digits.",  # should NOT match (13-digit run, no valid boundary)
     ]
     for s in samples:
         print(f"{s!r} -> {find_vat_mentions(s)}")
+
+    print("\n--- 12-digit VRN extraction stays intact through normalize/checksum ---")
+    for s in ("VAT registration number is GB553557881001.", "VAT Reg No: 553557881 001"):
+        hits = find_vat_mentions(s)
+        assert len(hits) == 1, f"expected exactly one match for {s!r}, got {hits}"
+        raw = hits[0]["raw"]
+        vrn = normalize_vat_number(raw)
+        assert vrn == "553557881001", f"normalize_vat_number({raw!r}) -> {vrn!r}, expected '553557881001'"
+        valid, style = is_valid_uk_vat_checksum(vrn)
+        print(f"{s!r} -> raw={raw!r} vrn={vrn!r} valid={valid} style={style}")

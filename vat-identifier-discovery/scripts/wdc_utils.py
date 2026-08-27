@@ -19,6 +19,7 @@ import csv
 import gzip
 import json
 import os
+import tempfile
 from collections.abc import Iterator
 from urllib.parse import urlparse
 
@@ -34,12 +35,24 @@ URL_PREDICATE = "http://schema.org/url"
 
 
 def download_file(url: str, dest_path: str) -> None:
-    """Stream-download a (potentially large) file to dest_path."""
-    with requests.get(url, stream=True, timeout=60) as response:
-        response.raise_for_status()
-        with open(dest_path, "wb") as f:
+    """Stream-download a (potentially large) file to dest_path.
+
+    Streams into a temp file in the same directory and atomically renames it
+    into place only once the download completes successfully -- so a crash
+    or interruption partway through can't leave a partial file that
+    ensure_file() would mistake for a complete, already-downloaded one.
+    """
+    dest_dir = os.path.dirname(dest_path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dest_dir)
+    try:
+        with os.fdopen(fd, "wb") as f, requests.get(url, stream=True, timeout=60) as response:
+            response.raise_for_status()
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 f.write(chunk)
+        os.replace(tmp_path, dest_path)
+    except BaseException:
+        os.remove(tmp_path)
+        raise
 
 
 def iter_domain_stats(path: str) -> Iterator[tuple[str, int, int, dict[str, float]]]:
@@ -181,23 +194,42 @@ def extract_entities_for_domains(part_gz_path: str, target_domains: set[str]) ->
     return entities
 
 
-def save_checkpoint(path: str, processed_parts: set[str], entities: dict[str, dict]) -> None:
+def save_checkpoint(path: str, target_domains: set[str], processed_parts: set[str], entities: dict[str, dict]) -> None:
     """Persist extraction progress after each part file is scanned, so a
     crash or interruption partway through a multi-hundred-file run doesn't
     lose everything already extracted. Written to a temp file and then
     renamed into place (atomic on the same filesystem), so an interruption
     mid-write can't corrupt the previous, still-good checkpoint.
+
+    target_domains is stored alongside processed_parts/entities so a later
+    run with a different domain selection can detect the mismatch (see
+    load_checkpoint) instead of silently skipping domains that happen to
+    live in an already-"processed" part file.
     """
     tmp_path = f"{path}.tmp"
     with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump({"processed_parts": sorted(processed_parts), "entities": entities}, f)
+        json.dump(
+            {
+                "target_domains": sorted(target_domains),
+                "processed_parts": sorted(processed_parts),
+                "entities": entities,
+            },
+            f,
+        )
     os.replace(tmp_path, path)
 
 
-def load_checkpoint(path: str) -> tuple[set[str], dict[str, dict]]:
-    """Load a previously saved checkpoint, or (set(), {}) if none exists yet."""
+def load_checkpoint(path: str, target_domains: set[str]) -> tuple[set[str], dict[str, dict]]:
+    """Load a previously saved checkpoint, or (set(), {}) if none exists yet
+    or its stored target_domains doesn't match the current run's -- reusing
+    processed_parts/entities from a different domain selection would
+    silently skip domains newly added to target_domains that happen to live
+    in an already-"processed" part file.
+    """
     if not os.path.exists(path):
         return set(), {}
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
+    if set(data.get("target_domains", [])) != target_domains:
+        return set(), {}
     return set(data["processed_parts"]), data["entities"]
