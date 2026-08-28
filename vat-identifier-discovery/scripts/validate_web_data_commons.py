@@ -51,6 +51,14 @@ CHECKPOINT_PATH = os.path.join(SCRIPT_DIR, "wdc_join_checkpoint.json")
 # ("../x") or other malformed names rather than acting on them.
 PART_NAME_RE = re.compile(r"part_\d+\.gz")
 
+# vatID is free-form scraped text -- normalize_vat_number() keeps "digits
+# only" from whatever it's given, so unrelated digit fragments scattered
+# through garbage text (e.g. "Company Reg No 12345678, VAT: XYZZY999000111")
+# would otherwise be silently concatenated into a fake-looking VRN. Require
+# the raw value to already be just an optional GB/XI prefix plus digits/
+# whitespace before normalizing, catching that upstream.
+RAW_VATID_RE = re.compile(r"(?:GB|XI)?[\d\s]+")
+
 
 def _part_local_path(part_name: str) -> str:
     """Resolve a bare 'part_<number>.gz' name (as stored in the checkpoint
@@ -125,7 +133,7 @@ def survey() -> list[str]:
 
 
 def load_sample_name_lookup() -> dict[str, list[tuple[str, str]]]:
-    df = load_columns(SAMPLE_CSV, [COMPANY_NAME_COL, COMPANY_NUMBER_COL])
+    df = load_columns(os.path.join(SCRIPT_DIR, SAMPLE_CSV), [COMPANY_NAME_COL, COMPANY_NUMBER_COL])
     lookup: dict[str, list[tuple[str, str]]] = {}
     for name, number in zip(df[COMPANY_NAME_COL], df[COMPANY_NUMBER_COL], strict=True):
         lookup.setdefault(normalize_name(name), []).append((number.strip(), name))
@@ -295,7 +303,10 @@ def join(max_domains: int | None) -> None:
     token: str | None = None
     n_checksum_valid = 0
     for m in matches:
-        vrn = normalize_vat_number(m["vatid_raw"])
+        if RAW_VATID_RE.fullmatch(m["vatid_raw"].strip().upper()):
+            vrn = normalize_vat_number(m["vatid_raw"])
+        else:
+            vrn = ""
         valid, style = is_valid_uk_vat_checksum(vrn)
         if valid:
             n_checksum_valid += 1
