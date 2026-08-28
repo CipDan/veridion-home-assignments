@@ -42,7 +42,7 @@ Open the right document or directory for the task at hand:
 
 ### 1. Python Environment
 
-For this project, you are provided with a global 3.14.7 Python environment accessible through the `python -3.14`, `py -3.14`, `python -m` or `py -m` commands. To check available modules, use `python -m pip list` or `py -m pip list`; to facilitate some of the work that will need to be done, the environment comes with modules `pandas` (for sample or request-fetched data visualization), `requests` (for HTTP requests), `python-dotenv` (for reading key-value pairs from .env files) and `mypy` (for Python code type-checking) installed.
+For this project, you are provided with a global 3.14.7 Python environment accessible through either the `python -3.14` or `py -3.14` commands. To check available modules, use `python -3.14 pip list` or `py -3.14 pip list`; to facilitate some of the work that will need to be done, the environment comes with modules `pandas` (for sample or request-fetched data visualization), `requests` (for HTTP requests), `python-dotenv` (for reading key-value pairs from .env files) and `mypy` (for Python code type-checking) installed.
 
 Since this version of Python is rather very new (Aug. 5, 2026), and your training data would certainly not include any references to its documentation, I am providing you the documentation page's link: [Python 3.14.7 documentation](https://docs.python.org/3.14/). That way, you can always come back to it whenever needed. Should you deem it necessary, you can add some summarized pointers into a `SKILL.md` file.
 
@@ -66,8 +66,8 @@ See the `vat-source-validation` skill for how to verify candidate VAT sources (H
 * __Code must pass static type checking without suppressing or ignoring errors__ (no `# type: ignore`, no `Any` used to paper over a real mismatch). When the type checker flags an issue, fix the underlying types — e.g. change a function's signature so it can't return `None` where callers assume a value, rather than adding a guard/cast/suppression around every call site. After any such fix, re-check every other call site of the changed function/signature (not just the one that was flagged) to confirm the fix doesn't leave a mismatch elsewhere or introduce a new one — a signature change that satisfies one caller can silently break another.
 * __Generated code must be accompanied by appropriate docstrings.__
 * __Generated code must be validated against tests (e.g. one-off smoke tests) or live runs, as appropriate, before being presented as solution.__
-* __Existing project files must be checked after edits to ensure no stale content has been created by the changes__ (e.g. unrelated docstrings, conflicting records in snapshots/documents).* __Always backup cached data in case a new workflow edit could affect it.__
-* If something is unclear or could be improved, __say so and suggest a better approach__ rather than guess.
+* __Existing project files must be checked after edits to ensure no stale content has been created by the changes__ (e.g. unrelated docstrings, conflicting records in snapshots/documents).
+* __Always backup cached data in case a new workflow edit could affect it.__* If something is unclear or could be improved, __say so and suggest a better approach__ rather than guess.
 
 ## Constraints (Hard Rules)
 

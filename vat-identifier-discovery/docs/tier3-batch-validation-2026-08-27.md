@@ -244,6 +244,8 @@ Claude then ran `mypy` across the four new/edited scripts in the project's estab
 >
 > `FINDINGS.md` is fully updated (both entries, the new candidate, both changelog entries, both Open Questions resolved), and all new scripts (`wdc_utils.py`, `ch_accounts_utils.py`, `validate_web_data_commons.py`, `validate_ch_accounts.py`) are mypy-clean at the project's existing baseline. Large working files (bulk CSVs, the CH zip, the checkpoint) are gitignored and untracked, confirmed via `git status`.
 
+The "at most one ~150-300MB file sits on disk" framing in that recap describes steady-state processing once any pre-existing backlog of part files has been cleared — see §4.3's note on checkpoint-then-delete ordering: a run interrupted between a checkpoint save and its matching file deletion can leave that processed part file behind as a backlog for the next resume to clear before downloads continue.
+
 ### 7.3. Files edited
 
 * `vat-identifier-discovery/FINDINGS.md` — Companies House bulk accounts entry rejected with full validation trail; Web Data Commons entry confirmed with full validation trail; new `companiesintheuk.co.uk` candidate entry added; Open Questions #3 and #4 resolved; Changelog updated.

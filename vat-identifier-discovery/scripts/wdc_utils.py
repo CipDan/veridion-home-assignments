@@ -168,8 +168,12 @@ def extract_entities_for_domains(part_gz_path: str, target_domains: set[str]) ->
     values for every quad whose graph URL's host falls under one of
     target_domains.
 
-    Returns {subject: {"domain": ..., "graph": ..., "name": ..., "url": ...,
-    "vatID": ...}} (the latter three keys present only if seen).
+    Returns {"graph\\tsubject": {"domain": ..., "graph": ..., "name": ...,
+    "url": ..., "vatID": ...}} (the latter three keys present only if seen).
+    Subjects are frequently RDF blank-node ids (e.g. "_:b1"), which are only
+    unique within their own graph -- keying by subject alone would merge
+    distinct entities from different graphs that happen to reuse the same
+    blank-node id, so the key combines graph and subject instead.
     """
     entities: dict[str, dict] = {}
     with gzip.open(part_gz_path, "rt", encoding="utf-8", errors="replace") as f:
@@ -184,7 +188,8 @@ def extract_entities_for_domains(part_gz_path: str, target_domains: set[str]) ->
             domain = _pld_of_host(host, target_domains)
             if domain is None:
                 continue
-            entry = entities.setdefault(subject, {"domain": domain, "graph": graph})
+            entity_key = f"{graph}\t{subject}"
+            entry = entities.setdefault(entity_key, {"domain": domain, "graph": graph})
             if predicate == VAT_ID_PREDICATE:
                 entry["vatID"] = strip_literal(object_raw)
             elif predicate == NAME_PREDICATE:
