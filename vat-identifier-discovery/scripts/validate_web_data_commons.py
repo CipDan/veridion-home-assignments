@@ -50,9 +50,14 @@ def ensure_file(path: str, url: str) -> str:
 
 def inspect() -> None:
     domain_stats_path = ensure_file(DOMAIN_STATS_PATH, wdc_utils.DOMAIN_STATS_URL)
-    rows = list(wdc_utils.iter_domain_stats(domain_stats_path))
-    print(f"Organization_domain_stats.csv: {len(rows)} domains")
-    for domain, n_quads, n_entities, properties in rows[:5]:
+    n_domains = 0
+    preview_rows: list[tuple[str, int, int, dict[str, float]]] = []
+    for domain, n_quads, n_entities, properties in wdc_utils.iter_domain_stats(domain_stats_path):
+        n_domains += 1
+        if len(preview_rows) < 5:
+            preview_rows.append((domain, n_quads, n_entities, properties))
+    print(f"Organization_domain_stats.csv: {n_domains} domains")
+    for domain, n_quads, n_entities, properties in preview_rows:
         print(f"  {domain}: {n_quads} quads, {n_entities} entities, properties={properties}")
 
 
@@ -100,6 +105,10 @@ def load_sample_name_lookup() -> dict[str, list[tuple[str, str]]]:
 
 
 def join(max_domains: int | None) -> None:
+    if max_domains is not None and max_domains <= 0:
+        print(f"Invalid max_domains: {max_domains} (must be a positive integer, or omitted for no limit)")
+        return
+
     uk_domains_with_vatid = survey()
     if not uk_domains_with_vatid:
         print("\nNo .uk domains carry a populated vatID -- nothing to extract or join.")
@@ -113,7 +122,9 @@ def join(max_domains: int | None) -> None:
     print(f"Part files needed: {len(needed_parts)} distinct file(s) for {len(target_domains)} domain(s) "
           f"-- each is downloaded, scanned, checkpointed, then deleted, so at most one sits on disk at a time")
 
-    processed_parts, entities = wdc_utils.load_checkpoint(CHECKPOINT_PATH, target_domains)
+    processed_parts, entities, checkpoint_note = wdc_utils.load_checkpoint(CHECKPOINT_PATH, target_domains)
+    if checkpoint_note:
+        print(checkpoint_note)
     remaining_parts = [p for p in needed_parts if p not in processed_parts]
     if processed_parts:
         print(f"Resuming from checkpoint: {len(processed_parts)} part file(s) already done, "
@@ -168,6 +179,28 @@ def join(max_domains: int | None) -> None:
     print(f"\nMatched to sample CSV by normalized CompanyName (unambiguous): {len(matches)} raw match(es)")
     print(f"Ambiguous matches (name maps to >1 CompanyNumber, skipped): {len(ambiguous)}")
 
+    # normalize_vat_number() only strips a GB/XI prefix -- a vatID carrying
+    # some other country's prefix (e.g. "DE123456789") would otherwise have
+    # just its letters stripped and be treated as if it were a UK VRN.
+    # Inspect each raw value's two-letter prefix before normalizing, and
+    # keep only unprefixed values (assumed UK, consistent with existing
+    # behaviour) and GB/XI-prefixed ones out of dedup/counting as UK VRNs.
+    uk_prefixes = ("GB", "XI")
+    non_uk_matches = []
+    uk_context_matches = []
+    for m in matches:
+        prefix = m["vatid_raw"].strip().upper()[:2]
+        if prefix.isalpha() and prefix not in uk_prefixes:
+            non_uk_matches.append(m)
+        else:
+            uk_context_matches.append(m)
+    matches = uk_context_matches
+    if non_uk_matches:
+        print(f"\nExcluded {len(non_uk_matches)} match(es) with a non-GB/XI country-prefixed vatID "
+              f"(not UK VRNs, reported separately):")
+        for m in non_uk_matches:
+            print(f"  {m['sample_number']} ({m['sample_name']}): vatID={m['vatid_raw']!r}")
+
     # WDC can extract the same real-world organization many times over --
     # e.g. one domain repeating identical schema.org Organization markup on
     # every page, each occurrence getting its own RDF subject/blank-node id.
@@ -217,7 +250,10 @@ def join(max_domains: int | None) -> None:
             print("  ^^ FLAGGED: checksum-invalid -- likely not a genuine UK VRN despite the vatID property name")
 
     print(f"\nChecksum valid: {n_checksum_valid}/{len(matches)} "
-          f"({(len(matches) - n_checksum_valid) / len(matches):.1%} measured false-positive rate)")
+          f"({(len(matches) - n_checksum_valid) / len(matches):.1%} checksum-invalid rate)")
+    print("Note: this measures well-formedness only. The actual false-positive rate -- whether a "
+          "checksum-valid vatID is genuinely registered to, and owned by, the matched company -- is "
+          "unknown without authoritative HMRC/Companies House confirmation, which sandbox access cannot provide.")
 
 
 def main() -> None:

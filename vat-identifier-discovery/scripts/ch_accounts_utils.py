@@ -37,13 +37,16 @@ _WHITESPACE_RE = re.compile(r"\s+")
 # keyword (mandatory -- this is what excludes an unrelated mention like
 # "input VAT of 123456789"), then tolerates prose connecting the keyword to
 # the value itself ("is", "was", "of", ":", "-", or nothing), then a 9-digit
-# number (optionally GB-prefixed) with an optional 3-digit branch/group
-# suffix for 12-digit VRNs. The trailing (?!\d) stops a longer digit run
-# (e.g. a 10+ digit number) from being partially captured as a 9- or
-# 12-digit match.
+# number (optionally GB/XI-prefixed, and optionally grouped with whitespace
+# between digits, e.g. "GB 553 5578 81") with an optional 3-digit
+# branch/group suffix for 12-digit VRNs. normalize_vat_number() strips all
+# whitespace and any GB/XI prefix, so a grouped raw match still normalizes
+# correctly. The trailing (?!\s?\d) stops a longer digit run (e.g. a 10+
+# digit number, possibly with a space before the extra digit) from being
+# partially captured as a 9- or 12-digit match.
 VAT_MENTION_RE = re.compile(
     r"VAT\s*(?:REGISTRATION|REG\.?|NUMBER|NO)\.?\s*(?:NUMBER|NO\.?)?\s*(?:IS|WAS|OF|:|-)?\s*"
-    r"(GB\s?\d{9}(?:\s?\d{3})?|\d{9}(?:\s?\d{3})?)(?!\d)",
+    r"((?:GB|XI)\s?\d(?:\s?\d){8}(?:\s?\d{3})?|\d(?:\s?\d){8}(?:\s?\d{3})?)(?!\s?\d)",
     re.IGNORECASE,
 )
 
@@ -90,12 +93,12 @@ def iter_company_numbers_in_zip(zip_path: str) -> Iterator[tuple[str, str]]:
                 yield match.group(1), name
 
 
-def read_member_text(zip_path: str, member_name: str) -> str:
-    """Read one filing's HTML out of the ZIP (without extracting the whole
-    archive to disk) and reduce it to plain text for regex scanning.
+def read_member_text(zf: zipfile.ZipFile, member_name: str) -> str:
+    """Read one filing's HTML out of an already-open ZIP (so callers scanning
+    many members can open the archive once instead of once per member) and
+    reduce it to plain text for regex scanning.
     """
-    with zipfile.ZipFile(zip_path) as zf:
-        raw = zf.read(member_name).decode("utf-8", errors="replace")
+    raw = zf.read(member_name).decode("utf-8", errors="replace")
     text = _TAG_RE.sub(" ", raw)
     text = html.unescape(text)
     return _WHITESPACE_RE.sub(" ", text)
@@ -127,6 +130,9 @@ if __name__ == "__main__":
         "VAT registration number is GB553557881001.",  # 12-digit VRN (9-digit + branch/group suffix)
         "VAT Reg No: 553557881 001",  # 12-digit VRN with a space before the suffix
         "VAT number 5535578810012 has too many digits.",  # should NOT match (13-digit run, no valid boundary)
+        "VAT registration number: XI553557881.",  # XI prefix
+        "VAT registration number: GB 553 5578 81.",  # grouped digits, no branch suffix
+        "VAT Reg No: 553557881 0012",  # should NOT match (9 digits + a 4-digit run, no valid 9/12-digit boundary)
     ]
     for s in samples:
         print(f"{s!r} -> {find_vat_mentions(s)}")
@@ -140,3 +146,15 @@ if __name__ == "__main__":
         assert vrn == "553557881001", f"normalize_vat_number({raw!r}) -> {vrn!r}, expected '553557881001'"
         valid, style = is_valid_uk_vat_checksum(vrn)
         print(f"{s!r} -> raw={raw!r} vrn={vrn!r} valid={valid} style={style}")
+
+    print("\n--- XI prefix and grouped digits normalize the same as an ungrouped GB match ---")
+    for s in ("VAT registration number: XI553557881.", "VAT registration number: GB 553 5578 81."):
+        hits = find_vat_mentions(s)
+        assert len(hits) == 1, f"expected exactly one match for {s!r}, got {hits}"
+        raw = hits[0]["raw"]
+        vrn = normalize_vat_number(raw)
+        assert vrn == "553557881", f"normalize_vat_number({raw!r}) -> {vrn!r}, expected '553557881'"
+        print(f"{s!r} -> raw={raw!r} vrn={vrn!r}")
+
+    no_match = find_vat_mentions("VAT Reg No: 553557881 0012")
+    assert no_match == [], f"expected no match for a 9-digit run followed by a stray 4-digit run, got {no_match}"

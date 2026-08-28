@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import sys
+import zipfile
 
 from ch_accounts_utils import (
     contains_vat_word,
@@ -56,9 +57,13 @@ def inspect(date: str) -> None:
     path = ensure_zip(date)
     entries = list(iter_company_numbers_in_zip(path))
     print(f"{date}: {len(entries)} filings in bulk ZIP")
+    if not entries:
+        print("No recognized filings in this ZIP -- nothing to inspect.")
+        return
     number, member_name = entries[0]
     print(f"\nFirst filing: CompanyNumber={number}, file={member_name}")
-    text = read_member_text(path, member_name)
+    with zipfile.ZipFile(path) as zf:
+        text = read_member_text(zf, member_name)
     print(f"Plain-text length: {len(text)} chars")
     hits = find_vat_mentions(text)
     print(f"VAT mentions in this one filing: {len(hits)}")
@@ -75,15 +80,19 @@ def scan(date: str) -> list[dict]:
     path = ensure_zip(date)
     entries = list(iter_company_numbers_in_zip(path))
     print(f"{date}: {len(entries)} filings in bulk ZIP")
+    if not entries:
+        print("No recognized filings in this ZIP -- nothing to scan.")
+        return []
 
     all_hits = []
     n_filings_with_vat_word = 0
-    for number, member_name in entries:
-        text = read_member_text(path, member_name)
-        if contains_vat_word(text):
-            n_filings_with_vat_word += 1
-        for hit in find_vat_mentions(text):
-            all_hits.append({"company_number": number, "member_name": member_name, **hit})
+    with zipfile.ZipFile(path) as zf:
+        for number, member_name in entries:
+            text = read_member_text(zf, member_name)
+            if contains_vat_word(text):
+                n_filings_with_vat_word += 1
+            for hit in find_vat_mentions(text):
+                all_hits.append({"company_number": number, "member_name": member_name, **hit})
 
     n_filings_with_hit = len({h["member_name"] for h in all_hits})
     print(f"Filings with >=1 VAT mention: {n_filings_with_hit}/{len(entries)} "
@@ -110,10 +119,11 @@ def join(date: str) -> None:
         return
 
     hits = []
-    for number, member_name in matched_entries:
-        text = read_member_text(path, member_name)
-        for hit in find_vat_mentions(text):
-            hits.append({"company_number": number, "member_name": member_name, **hit})
+    with zipfile.ZipFile(path) as zf:
+        for number, member_name in matched_entries:
+            text = read_member_text(zf, member_name)
+            for hit in find_vat_mentions(text):
+                hits.append({"company_number": number, "member_name": member_name, **hit})
 
     n_filings_with_hit = len({h["member_name"] for h in hits})
     print(f"Sample-matched filings with >=1 VAT mention: {n_filings_with_hit}/{len(matched_entries)} "
@@ -156,7 +166,7 @@ def join(date: str) -> None:
 
     print(f"\nTotal VAT-mention matches: {len(hits)}")
     print(f"Checksum valid: {n_checksum_valid}/{n_checked} "
-          f"({(n_checked - n_checksum_valid) / n_checked:.1%} measured false-positive rate)")
+          f"({(n_checked - n_checksum_valid) / n_checked:.1%} checksum-invalid rate)")
     print(f"Distinct VRNs sandbox-checked: {len(seen_vrns)}")
 
 

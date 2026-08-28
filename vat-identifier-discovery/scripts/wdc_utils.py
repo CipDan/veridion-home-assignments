@@ -219,17 +219,27 @@ def save_checkpoint(path: str, target_domains: set[str], processed_parts: set[st
     os.replace(tmp_path, path)
 
 
-def load_checkpoint(path: str, target_domains: set[str]) -> tuple[set[str], dict[str, dict]]:
-    """Load a previously saved checkpoint, or (set(), {}) if none exists yet
-    or its stored target_domains doesn't match the current run's -- reusing
-    processed_parts/entities from a different domain selection would
-    silently skip domains newly added to target_domains that happen to live
-    in an already-"processed" part file.
+def load_checkpoint(path: str, target_domains: set[str]) -> tuple[set[str], dict[str, dict], str | None]:
+    """Load a previously saved checkpoint, or (set(), {}, reason) if none
+    exists yet or its stored target_domains doesn't match the current run's
+    -- reusing processed_parts/entities from a different domain selection
+    would silently skip domains newly added to target_domains that happen to
+    live in an already-"processed" part file. The third element is None on
+    a clean load (or no checkpoint file at all), or a human-readable reason
+    when an existing checkpoint was found but discarded -- so a caller isn't
+    left wondering why a run unexpectedly restarts from scratch instead of
+    resuming (e.g. a checkpoint written before target_domains was part of
+    the schema will always mismatch and be discarded this way).
     """
     if not os.path.exists(path):
-        return set(), {}
+        return set(), {}, None
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    if set(data.get("target_domains", [])) != target_domains:
-        return set(), {}
-    return set(data["processed_parts"]), data["entities"]
+    stored_domains = set(data.get("target_domains", []))
+    if stored_domains != target_domains:
+        return set(), {}, (
+            f"Found a checkpoint at {path} but its target_domains "
+            f"({len(stored_domains)} domain(s)) doesn't match this run's "
+            f"({len(target_domains)} domain(s)) -- discarding it and starting fresh."
+        )
+    return set(data["processed_parts"]), data["entities"], None
