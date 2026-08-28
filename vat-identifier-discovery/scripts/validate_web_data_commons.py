@@ -33,9 +33,16 @@ SAMPLE_CSV = "../BasicCompanyData-2026-08-01-part1_7.csv"
 COMPANY_NAME_COL = "CompanyName"
 COMPANY_NUMBER_COL = " CompanyNumber"
 
-DOMAIN_STATS_PATH = "Organization_domain_stats.csv"
-LOOKUP_PATH = "Organization_lookup.csv"
-CHECKPOINT_PATH = "wdc_join_checkpoint.json"
+# Cached/downloaded artifacts are resolved relative to this script's own
+# directory (not the process's current working directory) so they always
+# land in vat-identifier-discovery/scripts/ -- where the .gitignore patterns
+# for *.gz/Organization_*.csv/*_checkpoint.json expect them -- even when the
+# script is invoked from the repository root or elsewhere.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DOMAIN_STATS_PATH = os.path.join(SCRIPT_DIR, "Organization_domain_stats.csv")
+LOOKUP_PATH = os.path.join(SCRIPT_DIR, "Organization_lookup.csv")
+CHECKPOINT_PATH = os.path.join(SCRIPT_DIR, "wdc_join_checkpoint.json")
 
 # WDC part files are always named "part_<number>.gz" (see wdc_utils module
 # docstring). file_lookup values come from a downloaded CSV and are used
@@ -43,6 +50,15 @@ CHECKPOINT_PATH = "wdc_join_checkpoint.json"
 # enforcing this exact shape before any path operation rejects traversal
 # ("../x") or other malformed names rather than acting on them.
 PART_NAME_RE = re.compile(r"part_\d+\.gz")
+
+
+def _part_local_path(part_name: str) -> str:
+    """Resolve a bare 'part_<number>.gz' name (as stored in the checkpoint
+    and returned by load_file_lookup()) to its local download path under
+    SCRIPT_DIR, so every on-disk check/download/removal of a part file
+    agrees on the same location regardless of the process's cwd.
+    """
+    return os.path.join(SCRIPT_DIR, part_name)
 
 
 def normalize_name(name: str) -> str:
@@ -167,9 +183,9 @@ def join(max_domains: int | None) -> None:
     # skips anything in processed_parts, that leftover would never be revisited
     # or cleaned up otherwise, silently breaking the "at most one part file on
     # disk at a time" invariant.
-    leftover_parts = [p for p in processed_parts if os.path.exists(p)]
+    leftover_parts = [p for p in processed_parts if os.path.exists(_part_local_path(p))]
     for part_name in leftover_parts:
-        os.remove(part_name)
+        os.remove(_part_local_path(part_name))
     if leftover_parts:
         print(f"Removed {len(leftover_parts)} already-processed part file(s) left over from an "
               f"interrupted run: {', '.join(leftover_parts)}")
@@ -180,7 +196,7 @@ def join(max_domains: int | None) -> None:
               f"{len(remaining_parts)} remaining, {len(entities)} entities extracted so far")
 
     for part_name in remaining_parts:
-        part_path = part_name
+        part_path = _part_local_path(part_name)
         if not os.path.exists(part_path):
             part_url = f"{wdc_utils.BASE_URL}/{part_name}"
             print(f"Downloading {part_url} -> {part_path} (~150-300MB, may take a while)...")

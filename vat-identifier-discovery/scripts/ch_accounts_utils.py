@@ -36,16 +36,17 @@ _WHITESPACE_RE = re.compile(r"\s+")
 # Requires the word "VAT" directly followed by a registration/number-style
 # keyword (mandatory -- this is what excludes an unrelated mention like
 # "input VAT of 123456789"), then tolerates prose connecting the keyword to
-# the value itself ("is", "was", "of", ":", "-", or nothing), then a 9-digit
-# number (optionally GB/XI-prefixed, and optionally grouped with whitespace
-# between digits, e.g. "GB 553 5578 81") with an optional 3-digit
-# branch/group suffix for 12-digit VRNs. normalize_vat_number() strips all
-# whitespace and any GB/XI prefix, so a grouped raw match still normalizes
-# correctly. The trailing (?!\s?\d) stops a longer digit run (e.g. a 10+
-# digit number, possibly with a space before the extra digit) from being
-# partially captured as a 9- or 12-digit match.
+# the value itself -- any run of "is", "was", "of", "no"/"no.", ":", "-" (in
+# any combination and order, e.g. "number is:" or "number no."), or nothing
+# -- then a 9-digit number (optionally GB/XI-prefixed, and optionally
+# grouped with whitespace between digits, e.g. "GB 553 5578 81") with an
+# optional 3-digit branch/group suffix for 12-digit VRNs. normalize_vat_number()
+# strips all whitespace and any GB/XI prefix, so a grouped raw match still
+# normalizes correctly. The trailing (?!\s?\d) stops a longer digit run
+# (e.g. a 10+ digit number, possibly with a space before the extra digit)
+# from being partially captured as a 9- or 12-digit match.
 VAT_MENTION_RE = re.compile(
-    r"VAT\s*(?:REGISTRATION|REG\.?|NUMBER|NO)\.?\s*(?:NUMBER|NO\.?)?\s*(?:IS|WAS|OF|:|-)?\s*"
+    r"VAT\s*(?:REGISTRATION|REG\.?|NUMBER|NO)\.?\s*(?:NUMBER|NO\.?)?\s*(?:(?:IS|WAS|OF|NO\.?|:|-)\s*)*"
     r"((?:GB|XI)\s?\d(?:\s?\d){8}(?:\s?\d{3})?|\d(?:\s?\d){8}(?:\s?\d{3})?)(?!\s?\d)",
     re.IGNORECASE,
 )
@@ -148,6 +149,8 @@ if __name__ == "__main__":
         "VAT registration number: XI553557881.",  # XI prefix
         "VAT registration number: GB 553 5578 81.",  # grouped digits, no branch suffix
         "VAT Reg No: 553557881 0012",  # should NOT match (9 digits + a 4-digit run, no valid 9/12-digit boundary)
+        "VAT registration number is: 123456789.",  # sequential "is" + ":" connector tokens
+        "VAT registration number no. 123456789.",  # "no." connector after the "number" label
     ]
     for s in samples:
         print(f"{s!r} -> {find_vat_mentions(s)}")

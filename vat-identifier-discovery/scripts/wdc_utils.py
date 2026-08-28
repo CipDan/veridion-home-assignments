@@ -158,14 +158,24 @@ def _decode_ntriples_escape(match: re.Match[str]) -> str:
     """Resolve one regex match of an ECHAR (\\t/\\b/\\n/\\r/\\f/\\"/\\'/\\\\)
     or UCHAR (\\uXXXX/\\UXXXXXXXX) escape to its literal character. An
     unrecognized \\X sequence is left unchanged, matching how a lenient
-    N-Triples reader would treat it.
+    N-Triples reader would treat it -- as is a \\uXXXX/\\UXXXXXXXX escape
+    whose code point falls outside the valid Unicode scalar range (above
+    0x10FFFF, or a UTF-16 surrogate in the D800-DFFF range). Python's chr()
+    does not itself reject a lone surrogate code point -- it happily returns
+    a str holding one -- so that range is excluded explicitly rather than
+    relying on chr() to raise; a lone surrogate byte would otherwise
+    propagate into downstream JSON/text output and fail to encode there.
     """
     token = match.group(1)
     if len(token) == 5 and token[0] == "u":
-        return chr(int(token[1:], 16))
-    if len(token) == 9 and token[0] == "U":
-        return chr(int(token[1:], 16))
-    return _NTRIPLES_SIMPLE_ESCAPES.get(token, match.group(0))
+        code_point = int(token[1:], 16)
+    elif len(token) == 9 and token[0] == "U":
+        code_point = int(token[1:], 16)
+    else:
+        return _NTRIPLES_SIMPLE_ESCAPES.get(token, match.group(0))
+    if code_point > 0x10FFFF or 0xD800 <= code_point <= 0xDFFF:
+        return match.group(0)
+    return chr(code_point)
 
 
 def strip_literal(object_raw: str) -> str:
@@ -311,6 +321,8 @@ if __name__ == "__main__":
         (r'"Back\\slash"', "Back\\slash"),
         ('"Plain Ltd"@en', "Plain Ltd"),
         ("<http://example.org/a>", "<http://example.org/a>"),
+        (r'"Bad\uD800escape"', "Bad\\uD800escape"),  # lone UTF-16 surrogate: not a valid Unicode scalar
+        (r'"Bad\U11000000escape"', "Bad\\U11000000escape"),  # \U value above 0x10FFFF
     ]
     for raw, expected in escape_cases:
         decoded = strip_literal(raw)
