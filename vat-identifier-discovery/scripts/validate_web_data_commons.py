@@ -14,7 +14,7 @@ CompanyName -- there is no Companies House number in this data, so (like
 PEPPOL) this is a fuzzy name join, not an exact-key one.
 
 Usage:
-    py -3.14 validate_web_data_commons.py inspect            # download+preview domain_stats/lookup
+    py -3.14 validate_web_data_commons.py inspect            # download+preview domain_stats
     py -3.14 validate_web_data_commons.py survey             # global + UK vatID hit-rate
     py -3.14 validate_web_data_commons.py join [max_domains]  # survey + part-file extraction + sample join
 """
@@ -274,6 +274,27 @@ def join(max_domains: int | None) -> None:
         for m in non_uk_matches:
             print(f"  {m['sample_number']} ({m['sample_name']}): vatID={m['vatid_raw']!r}")
 
+    # vatID is free-form scraped text -- normalize_vat_number() keeps "digits
+    # only" from whatever it's given, so a structurally garbage raw value must
+    # be classified with RAW_VATID_RE *before* it ever reaches the canonical
+    # normalization below. Classifying here (rather than only later, inside
+    # the checksum loop) stops a malformed entry from being assigned a bogus
+    # normalized vrn that could collide with, or be misreported as conflicting
+    # with, a genuine valid VAT ID matched to the same company.
+    raw_valid_matches = []
+    raw_rejected_matches = []
+    for m in matches:
+        if RAW_VATID_RE.fullmatch(m["vatid_raw"].strip().upper()):
+            raw_valid_matches.append(m)
+        else:
+            raw_rejected_matches.append(m)
+    matches = raw_valid_matches
+    if raw_rejected_matches:
+        print(f"\nExcluded {len(raw_rejected_matches)} match(es) with a raw vatID that isn't just an optional "
+              f"GB/XI prefix plus digits/whitespace (structurally not a VAT number, reported separately):")
+        for m in raw_rejected_matches:
+            print(f"  {m['sample_number']} ({m['sample_name']}): vatID={m['vatid_raw']!r}")
+
     # WDC can extract the same real-world organization many times over --
     # e.g. one domain repeating identical schema.org Organization markup on
     # every page, each occurrence getting its own RDF subject/blank-node id.
@@ -303,10 +324,7 @@ def join(max_domains: int | None) -> None:
     token: str | None = None
     n_checksum_valid = 0
     for m in matches:
-        if RAW_VATID_RE.fullmatch(m["vatid_raw"].strip().upper()):
-            vrn = normalize_vat_number(m["vatid_raw"])
-        else:
-            vrn = ""
+        vrn = normalize_vat_number(m["vatid_raw"])
         valid, style = is_valid_uk_vat_checksum(vrn)
         if valid:
             n_checksum_valid += 1
