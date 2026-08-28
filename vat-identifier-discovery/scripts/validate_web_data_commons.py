@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import sys
 
 import wdc_utils
@@ -35,6 +36,13 @@ COMPANY_NUMBER_COL = " CompanyNumber"
 DOMAIN_STATS_PATH = "Organization_domain_stats.csv"
 LOOKUP_PATH = "Organization_lookup.csv"
 CHECKPOINT_PATH = "wdc_join_checkpoint.json"
+
+# WDC part files are always named "part_<number>.gz" (see wdc_utils module
+# docstring). file_lookup values come from a downloaded CSV and are used
+# directly as local file paths (download destination, then os.remove) --
+# enforcing this exact shape before any path operation rejects traversal
+# ("../x") or other malformed names rather than acting on them.
+PART_NAME_RE = re.compile(r"part_\d+\.gz")
 
 
 def normalize_name(name: str) -> str:
@@ -122,13 +130,37 @@ def join(max_domains: int | None) -> None:
     print(f"\nLooking up which part file(s) hold {len(target_domains)} target domain(s)...")
     lookup_path = ensure_file(LOOKUP_PATH, wdc_utils.LOOKUP_URL)
     file_lookup = wdc_utils.load_file_lookup(lookup_path, target_domains)
+    missing_domains = target_domains - file_lookup.keys()
+    if missing_domains:
+        print(f"ERROR: {len(missing_domains)} target domain(s) have no entry in {LOOKUP_PATH}, "
+              f"cannot locate their part file(s): {', '.join(sorted(missing_domains))}")
+        return
+
     needed_parts = sorted(set(file_lookup.values()))
+    invalid_parts = [p for p in needed_parts if not PART_NAME_RE.fullmatch(p)]
+    if invalid_parts:
+        print(f"ERROR: {len(invalid_parts)} part file name(s) from {LOOKUP_PATH} don't match the expected "
+              f"'part_<number>.gz' format, refusing to use them as local paths: {', '.join(invalid_parts)}")
+        return
     print(f"Part files needed: {len(needed_parts)} distinct file(s) for {len(target_domains)} domain(s) "
-          f"-- each is downloaded, scanned, checkpointed, then deleted, so at most one sits on disk at a time")
+          f"-- each is downloaded, scanned, checkpointed, then deleted immediately after, keeping disk usage "
+          f"flat outside of an interrupted run")
 
     processed_parts, entities, checkpoint_note = wdc_utils.load_checkpoint(CHECKPOINT_PATH, target_domains)
     if checkpoint_note:
         print(checkpoint_note)
+
+    # Checkpoint entries are locally written by this script, but only ever
+    # accept ones that fall within the current, already-validated part-file
+    # set -- a stray or stale entry (e.g. from a hand-edited or corrupted
+    # checkpoint file) shouldn't reach the os.path.exists()/os.remove() calls
+    # below.
+    needed_parts_set = set(needed_parts)
+    stale_processed = processed_parts - needed_parts_set
+    if stale_processed:
+        print(f"Ignoring {len(stale_processed)} checkpoint entry/entries outside the current validated "
+              f"part-file set: {', '.join(sorted(stale_processed))}")
+        processed_parts &= needed_parts_set
 
     # A crash between save_checkpoint() and os.remove() below can leave a
     # part file on disk that's already marked processed -- since remaining_parts

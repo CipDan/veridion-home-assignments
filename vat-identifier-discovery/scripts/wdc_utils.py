@@ -110,16 +110,16 @@ def parse_nquad_line(line: str) -> tuple[str, str, str, str] | None:
     blank or unparseable lines.
     """
     line = line.strip()
-    if not line.endswith(" ."):
+    if not line.endswith("."):
         return None
-    body = line[:-2].strip()
+    body = line[:-1].strip()
 
-    parts = body.split(" ", 1)
+    parts = body.split(None, 1)
     if len(parts) != 2:
         return None
     subject, rest = parts
 
-    parts = rest.split(" ", 1)
+    parts = rest.split(None, 1)
     if len(parts) != 2:
         return None
     predicate, rest = parts
@@ -243,3 +243,24 @@ def load_checkpoint(path: str, target_domains: set[str]) -> tuple[set[str], dict
             f"({len(target_domains)} domain(s)) -- discarding it and starting fresh."
         )
     return set(data["processed_parts"]), data["entities"], None
+
+
+if __name__ == "__main__":
+    samples = [
+        '<http://example.org/a> <http://schema.org/name> "Example Org" <http://example.org/page> .',
+        '<http://example.org/a>\t<http://schema.org/name>\t"Example Org"\t<http://example.org/page>\t.',
+        '<http://example.org/a>   <http://schema.org/name>   "Example Org"   <http://example.org/page>   .',
+        '<http://example.org/a> <http://schema.org/name> "Example Org" <http://example.org/page>.',
+        "not a valid quad line",
+    ]
+    for s in samples:
+        print(f"{s!r} -> {parse_nquad_line(s)}")
+
+    print("\n--- tab-separated, repeated-whitespace, and no-space-before-period all parse like the plain line ---")
+    reference = parse_nquad_line(samples[0])
+    for s in samples[1:4]:
+        result = parse_nquad_line(s)
+        assert result == reference, f"{s!r} -> {result!r}, expected {reference!r}"
+    print(f"All variants -> {reference}")
+
+    assert parse_nquad_line(samples[4]) is None, "a line with no terminating '.' should not parse"
