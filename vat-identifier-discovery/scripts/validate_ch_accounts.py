@@ -10,6 +10,7 @@ Usage:
     py -3.14 validate_ch_accounts.py inspect [date]        # zip contents, one filing's text
     py -3.14 validate_ch_accounts.py scan [date]           # VAT-mention rate across ALL filings that day
     py -3.14 validate_ch_accounts.py join [date]           # scan + join to sample + checksum/sandbox
+    py -3.14 validate_ch_accounts.py review [date] [sample_size] [seed]  # sample bare-VAT non-matches
 """
 
 from __future__ import annotations
@@ -208,7 +209,22 @@ def main() -> None:
     elif mode == "join":
         join(date)
     elif mode == "review":
-        review_bare_vat_mentions(date)
+        sample_size_raw = sys.argv[3] if len(sys.argv) > 3 else None
+        seed_raw = sys.argv[4] if len(sys.argv) > 4 else None
+        try:
+            sample_size = int(sample_size_raw) if sample_size_raw is not None else 20
+        except ValueError:
+            print(f"Invalid sample_size: {sample_size_raw!r} (must be a positive integer)")
+            return
+        if sample_size <= 0:
+            print(f"Invalid sample_size: {sample_size} (must be a positive integer)")
+            return
+        try:
+            seed = int(seed_raw) if seed_raw is not None else 0
+        except ValueError:
+            print(f"Invalid seed: {seed_raw!r} (must be an integer)")
+            return
+        review_bare_vat_mentions(date, sample_size=sample_size, seed=seed)
     else:
         print(f"Unknown mode: {mode}")
 

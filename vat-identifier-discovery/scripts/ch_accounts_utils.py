@@ -57,8 +57,8 @@ _VAT_WORD_RE = re.compile(r"\bVAT\b", re.IGNORECASE)
 
 
 def contains_vat_word(text: str) -> bool:
+    """Return True if the bare word "VAT" appears anywhere in text."""
     return _VAT_WORD_RE.search(text) is not None
-
 
 def find_vat_word_contexts(text: str, context_chars: int = 80) -> list[str]:
     """Return the surrounding-text window around every bare "VAT" occurrence,

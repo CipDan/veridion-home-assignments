@@ -276,7 +276,7 @@ def join(max_domains: int | None) -> None:
     if not matches:
         return
 
-    token = get_access_token()
+    token: str | None = None
     n_checksum_valid = 0
     for m in matches:
         vrn = normalize_vat_number(m["vatid_raw"])
@@ -293,8 +293,17 @@ def join(max_domains: int | None) -> None:
         print(f"Normalized VRN:       {vrn}")
         print(f"Checksum valid:       {valid} ({style})")
 
-        sandbox = check_vat_number(vrn, token)
-        print(f"Sandbox response:     {sandbox}")
+        # vatID is free-form scraped text (unlike ch_accounts' regex-constrained
+        # matches), so it can be structurally garbage -- only spend a sandbox call,
+        # and only obtain a token in the first place, on values check_vat_number's
+        # own contract expects (9 or 12 digits).
+        if vrn.isdigit() and len(vrn) in (9, 12):
+            if token is None:
+                token = get_access_token()
+            sandbox = check_vat_number(vrn, token)
+            print(f"Sandbox response:     {sandbox}")
+        else:
+            print("Sandbox response:     skipped -- not 9 or 12 digits, not a structurally valid UK VRN")
         if not valid:
             print("  ^^ FLAGGED: checksum-invalid -- likely not a genuine UK VRN despite the vatID property name")
 
