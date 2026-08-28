@@ -129,6 +129,19 @@ def join(max_domains: int | None) -> None:
     processed_parts, entities, checkpoint_note = wdc_utils.load_checkpoint(CHECKPOINT_PATH, target_domains)
     if checkpoint_note:
         print(checkpoint_note)
+
+    # A crash between save_checkpoint() and os.remove() below can leave a
+    # part file on disk that's already marked processed -- since remaining_parts
+    # skips anything in processed_parts, that leftover would never be revisited
+    # or cleaned up otherwise, silently breaking the "at most one part file on
+    # disk at a time" invariant.
+    leftover_parts = [p for p in processed_parts if os.path.exists(p)]
+    for part_name in leftover_parts:
+        os.remove(part_name)
+    if leftover_parts:
+        print(f"Removed {len(leftover_parts)} already-processed part file(s) left over from an "
+              f"interrupted run: {', '.join(leftover_parts)}")
+
     remaining_parts = [p for p in needed_parts if p not in processed_parts]
     if processed_parts:
         print(f"Resuming from checkpoint: {len(processed_parts)} part file(s) already done, "
