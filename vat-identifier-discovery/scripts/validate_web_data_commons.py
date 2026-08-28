@@ -111,7 +111,7 @@ def survey() -> list[str]:
 def load_sample_name_lookup() -> dict[str, list[tuple[str, str]]]:
     df = load_columns(SAMPLE_CSV, [COMPANY_NAME_COL, COMPANY_NUMBER_COL])
     lookup: dict[str, list[tuple[str, str]]] = {}
-    for name, number in zip(df[COMPANY_NAME_COL], df[COMPANY_NUMBER_COL]):
+    for name, number in zip(df[COMPANY_NAME_COL], df[COMPANY_NUMBER_COL], strict=True):
         lookup.setdefault(normalize_name(name), []).append((number.strip(), name))
     return lookup
 
@@ -206,7 +206,7 @@ def join(max_domains: int | None) -> None:
 
     matches = []
     ambiguous = []
-    for subject, entity in entities_with_vatid.items():
+    for _subject, entity in entities_with_vatid.items():
         name = entity.get("name")
         if not name:
             continue

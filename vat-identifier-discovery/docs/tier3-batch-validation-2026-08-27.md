@@ -56,7 +56,6 @@ Copying the already-downloaded CH zip into `scripts/` and running `inspect` conf
 * `vat-identifier-discovery/scripts/ch_accounts_utils.py` — Companies House daily-ZIP download, CompanyNumber-from-filename parsing, VAT-mention regex scan.
 * `vat-identifier-discovery/scripts/validate_ch_accounts.py` — Companies House bulk accounts batch driver.
 * `vat-identifier-discovery/scripts/validate_web_data_commons.py` — Web Data Commons batch driver.
-* `.gitignore` (repository root) — extended to cover `*.gz`, `*.zip`, `Organization_*.csv`.
 
 ---
 

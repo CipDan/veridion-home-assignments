@@ -19,6 +19,7 @@ import csv
 import gzip
 import json
 import os
+import re
 import tempfile
 from collections.abc import Iterator
 from urllib.parse import urlparse
@@ -139,15 +140,47 @@ def parse_nquad_line(line: str) -> tuple[str, str, str, str] | None:
     return subject, predicate, object_raw, graph
 
 
+_NTRIPLES_ESCAPE_RE = re.compile(r'\\(u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)')
+
+_NTRIPLES_SIMPLE_ESCAPES = {
+    "t": "\t",
+    "b": "\b",
+    "n": "\n",
+    "r": "\r",
+    "f": "\f",
+    '"': '"',
+    "'": "'",
+    "\\": "\\",
+}
+
+
+def _decode_ntriples_escape(match: re.Match[str]) -> str:
+    """Resolve one regex match of an ECHAR (\\t/\\b/\\n/\\r/\\f/\\"/\\'/\\\\)
+    or UCHAR (\\uXXXX/\\UXXXXXXXX) escape to its literal character. An
+    unrecognized \\X sequence is left unchanged, matching how a lenient
+    N-Triples reader would treat it.
+    """
+    token = match.group(1)
+    if len(token) == 5 and token[0] == "u":
+        return chr(int(token[1:], 16))
+    if len(token) == 9 and token[0] == "U":
+        return chr(int(token[1:], 16))
+    return _NTRIPLES_SIMPLE_ESCAPES.get(token, match.group(0))
+
+
 def strip_literal(object_raw: str) -> str:
     """Strip a quoted N-Triples literal's surrounding quotes and any
-    trailing @lang/^^datatype suffix. Returns object_raw unchanged if it
-    isn't a quoted literal (e.g. it's an IRI or blank node).
+    trailing @lang/^^datatype suffix, decoding any ECHAR/UCHAR escape
+    sequences (\\t, \\n, \\", \\\\, \\uXXXX, \\UXXXXXXXX, ...) in the
+    literal's text along the way -- so e.g. a name containing an escaped
+    accented character comes back as the real character, ready for
+    normalize_name(). Returns object_raw unchanged if it isn't a quoted
+    literal (e.g. it's an IRI or blank node).
     """
     if not object_raw.startswith('"'):
         return object_raw
     end_quote = object_raw.rfind('"')
-    return object_raw[1:end_quote]
+    return _NTRIPLES_ESCAPE_RE.sub(_decode_ntriples_escape, object_raw[1:end_quote])
 
 
 def _pld_of_host(host: str, target_domains: set[str]) -> str | None:
@@ -269,3 +302,17 @@ if __name__ == "__main__":
     print(f"All variants -> {reference}")
 
     assert parse_nquad_line(samples[4]) is None, "a line with no terminating '.' should not parse"
+
+    print("\n--- strip_literal decodes N-Triples ECHAR/UCHAR escapes ---")
+    uchar_input = '"Caf' + chr(0x5C) + 'u00E9 Ltd"'  # raw N-Triples text for "Café Ltd"
+    escape_cases = [
+        (uchar_input, "Café Ltd"),
+        (r'"Quote: \"Ltd\""', 'Quote: "Ltd"'),
+        (r'"Back\\slash"', "Back\\slash"),
+        ('"Plain Ltd"@en', "Plain Ltd"),
+        ("<http://example.org/a>", "<http://example.org/a>"),
+    ]
+    for raw, expected in escape_cases:
+        decoded = strip_literal(raw)
+        assert decoded == expected, f"strip_literal({raw!r}) -> {decoded!r}, expected {expected!r}"
+        print(f"{raw!r} -> {decoded!r}")

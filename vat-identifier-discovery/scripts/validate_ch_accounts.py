@@ -39,10 +39,14 @@ DEFAULT_DATE = "2026-08-26"
 
 
 def zip_path_for_date(date: str) -> str:
+    """Return the local cache path for date's bulk accounts ZIP."""
     return f"ch_accounts_{date}.zip"
 
 
 def ensure_zip(date: str) -> str:
+    """Return the local path to date's bulk accounts ZIP, downloading it
+    first if it isn't already cached on disk.
+    """
     path = zip_path_for_date(date)
     if not os.path.exists(path):
         print(f"Downloading {date}'s bulk accounts ZIP (this is ~100MB+, may take a while)...")
@@ -57,6 +61,10 @@ def load_sample_lookup() -> dict[str, str]:
 
 
 def inspect(date: str) -> None:
+    """Print the bulk ZIP's filing count, then the first filing's plain-text
+    length and any VAT mentions found in it, as a quick eyeball check of
+    the data before running scan()/join() over the whole ZIP.
+    """
     path = ensure_zip(date)
     entries = list(iter_company_numbers_in_zip(path))
     print(f"{date}: {len(entries)} filings in bulk ZIP")
@@ -108,6 +116,10 @@ def scan(date: str) -> list[dict]:
 
 
 def join(date: str) -> None:
+    """Scan date's bulk ZIP for filings whose CompanyNumber is in the sample
+    CSV, then for each VAT mention found print its checksum validity and an
+    HMRC sandbox lookup, ending with a summary of the checksum-invalid rate.
+    """
     path = ensure_zip(date)
     print("Loading sample CSV CompanyNumber lookup...")
     sample_lookup = load_sample_lookup()
@@ -200,6 +212,9 @@ def review_bare_vat_mentions(date: str, sample_size: int = 20, seed: int = 0) ->
 
 
 def main() -> None:
+    """CLI entry point: dispatch to inspect/scan/join/review based on
+    sys.argv (see module docstring for usage).
+    """
     mode = sys.argv[1] if len(sys.argv) > 1 else "inspect"
     date = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_DATE
     if mode == "inspect":

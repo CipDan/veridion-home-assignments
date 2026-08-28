@@ -67,7 +67,8 @@ See the `vat-source-validation` skill for how to verify candidate VAT sources (H
 * __Generated code must be accompanied by appropriate docstrings.__
 * __Generated code must be validated against tests (e.g. one-off smoke tests) or live runs, as appropriate, before being presented as solution.__
 * __Existing project files must be checked after edits to ensure no stale content has been created by the changes__ (e.g. unrelated docstrings, conflicting records in snapshots/documents).
-* __Always backup cached data in case a new workflow edit could affect it.__* If something is unclear or could be improved, __say so and suggest a better approach__ rather than guess.
+* __Always backup cached data in case a new workflow edit could affect it.__
+* If something is unclear or could be improved, __say so and suggest a better approach__ rather than guess.
 
 ## Constraints (Hard Rules)
 

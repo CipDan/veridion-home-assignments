@@ -96,6 +96,8 @@ While reviewing the edited region, Claude noticed the `join()` function's own ru
 > - `py -3.14 -m mypy wdc_utils.py validate_web_data_commons.py` — clean except the pre-existing, unrelated `pandas-stubs` error in `csv_utils.py` (verified above, matches the project's documented baseline).
 > - The `validate_web_data_commons.py` guard clauses (missing-domain / bad-part-name) can't be exercised without live bulk data, but are straightforward to trace: both are simple set/regex checks that `return` early with a printed `ERROR:` line before any file I/O.
 
+The "can't be exercised without live bulk data" framing above describes what code inspection alone could show at that point in the session, before either guard had actually been run against anything. §2.4 below adds exactly that: a synthetic guard-clause test that exercises both the missing-domain and malformed-part-name guards directly, without live bulk data, inside isolated temp directories.
+
 ### 1.9. Files edited
 
 - `vat-identifier-discovery/docs/tier3-batch-validation-2026-08-27.md` — disk-space claim (118–120) softened; duplicate-count wording (202) corrected.
