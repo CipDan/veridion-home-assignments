@@ -60,6 +60,21 @@ def contains_vat_word(text: str) -> bool:
     return _VAT_WORD_RE.search(text) is not None
 
 
+def find_vat_word_contexts(text: str, context_chars: int = 80) -> list[str]:
+    """Return the surrounding-text window around every bare "VAT" occurrence,
+    for manually reading what a filing actually says when it mentions VAT but
+    VAT_MENTION_RE found no registration-number-style match -- the check
+    needed to tell "no VRN disclosed" apart from "disclosed in a format the
+    pattern doesn't recognise".
+    """
+    contexts = []
+    for match in _VAT_WORD_RE.finditer(text):
+        start = max(0, match.start() - context_chars)
+        end = min(len(text), match.end() + context_chars)
+        contexts.append(text[start:end])
+    return contexts
+
+
 def download_daily_zip(date: str, dest_path: str) -> None:
     """Download one day's bulk accounts ZIP (date format YYYY-MM-DD).
 

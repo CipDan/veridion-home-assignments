@@ -83,6 +83,10 @@ def survey() -> list[str]:
             if has_vatid:
                 uk_domains_with_vatid.append(domain)
 
+    if n_domains == 0:
+        print("No domains found in domain_stats.csv -- nothing to survey.")
+        return uk_domains_with_vatid
+
     print(f"Total domains surveyed: {n_domains}")
     print(f"Domains with vatID populated (any density > 0): {n_domains_with_vatid} "
           f"({n_domains_with_vatid / n_domains:.3%})")
@@ -263,7 +267,11 @@ def main() -> None:
     elif mode == "survey":
         survey()
     elif mode == "join":
-        max_domains = int(sys.argv[2]) if len(sys.argv) > 2 else None
+        try:
+            max_domains = int(sys.argv[2]) if len(sys.argv) > 2 else None
+        except ValueError:
+            print(f"Invalid max_domains: {sys.argv[2]!r} (must be a positive integer, or omitted for no limit)")
+            return
         join(max_domains)
     else:
         print(f"Unknown mode: {mode}")

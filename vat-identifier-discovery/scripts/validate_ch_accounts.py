@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import random
 import sys
 import zipfile
 
@@ -22,6 +23,7 @@ from ch_accounts_utils import (
     contains_vat_word,
     download_daily_zip,
     find_vat_mentions,
+    find_vat_word_contexts,
     iter_company_numbers_in_zip,
     read_member_text,
 )
@@ -170,6 +172,32 @@ def join(date: str) -> None:
     print(f"Distinct VRNs sandbox-checked: {len(seen_vrns)}")
 
 
+def review_bare_vat_mentions(date: str, sample_size: int = 20, seed: int = 0) -> None:
+    """Manually-inspectable sample of filings that mention the bare word
+    "VAT" but produced no VAT_MENTION_RE match -- resolves whether the
+    pattern's 0-hit result is a genuine negative or a missed disclosure
+    format (see FINDINGS.md, Companies House bulk accounts entry).
+    """
+    path = ensure_zip(date)
+    entries = list(iter_company_numbers_in_zip(path))
+    print(f"{date}: {len(entries)} filings in bulk ZIP")
+
+    unmatched_bare_mentions = []
+    with zipfile.ZipFile(path) as zf:
+        for number, member_name in entries:
+            text = read_member_text(zf, member_name)
+            if contains_vat_word(text) and not find_vat_mentions(text):
+                unmatched_bare_mentions.append((number, member_name, find_vat_word_contexts(text)))
+
+    print(f"Filings with a bare 'VAT' mention but no VAT_MENTION_RE match: {len(unmatched_bare_mentions)}")
+
+    sample = random.Random(seed).sample(unmatched_bare_mentions, k=min(sample_size, len(unmatched_bare_mentions)))
+    for number, member_name, contexts in sample:
+        print(f"\n--- CompanyNumber={number} file={member_name} ({len(contexts)} bare mention(s)) ---")
+        for context in contexts:
+            print(f"  ...{context}...")
+
+
 def main() -> None:
     mode = sys.argv[1] if len(sys.argv) > 1 else "inspect"
     date = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_DATE
@@ -179,6 +207,8 @@ def main() -> None:
         scan(date)
     elif mode == "join":
         join(date)
+    elif mode == "review":
+        review_bare_vat_mentions(date)
     else:
         print(f"Unknown mode: {mode}")
 
