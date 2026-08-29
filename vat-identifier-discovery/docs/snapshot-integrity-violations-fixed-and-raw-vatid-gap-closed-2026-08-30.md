@@ -32,7 +32,7 @@ Claude read the audit doc in full and listed `vat-identifier-discovery/docs/` (2
 
 ### 1.3. Process — commit-history archaeology across all 22 docs
 
-Claude pulled `git log --follow` for every doc except the untracked audit doc, establishing that 11 docs have only their own creation commit (clean by definition, since the violation requires a *later* edit) and 10 docs have post-creation edit commits worth diffing (`tier3-batch-validation-2026-08-27.md` itself already had 6 commits fully traced by the prior session). Claude then pulled `git show <commit> -- <path>` for every edit commit on every one of those 10 docs.
+Claude pulled `git log --follow` for every doc except the untracked audit doc, establishing that 12 docs have only their own creation commit (clean by definition, since the violation requires a *later* edit) and 9 docs have post-creation edit commits worth diffing (`tier3-batch-validation-2026-08-27.md` itself already had 6 commits fully traced by the prior session). Claude then pulled `git show <commit> -- <path>` for every edit commit on every one of those 9 docs.
 
 Most turned out to be formatting-only passes (Markdown list-marker escaping, table-separator normalization, backtick fixes) or legitimate same-session/immediate-review corrections (`coderabbit-fixes-ckan-census`'s "five→four" finding-count fix, `coderabbit-fixes-council-recensus`'s "unreachability" wording precision, both applied within ~15 minutes of the affected doc's own creation commit — correcting the doc's own self-consistency rather than importing later knowledge). Two, however, matched the violation pattern:
 
