@@ -31,7 +31,9 @@ POSTCODE_SOURCE_COL = "Supplier Postcode"
 
 
 def get_defra_month_urls(n_months: int) -> list[tuple[str, str]]:
-    """Return (publication_path, csv_url) for the n_months most recent DEFRA publications."""
+    """Return (publication_path, csv_url) for up to n_months of the most
+    recent DEFRA publications -- fewer if any of them lacks a CSV attachment.
+    """
     collection = gov_uk_utils.fetch_content(DEFRA_COLLECTION)
     doc_paths = gov_uk_utils.get_collection_document_paths(collection)
     results = []
@@ -55,10 +57,17 @@ def read_spend_csv(url: str) -> pd.DataFrame:
 
 
 def normalize_name(name: str) -> str:
+    """Uppercase and strip all whitespace, so minor formatting differences
+    between DEFRA's Supplier names and the sample CSV's CompanyName don't
+    block a match.
+    """
     return "".join(name.upper().split())
 
 
 def inspect() -> None:
+    """Print the sample CSV's header, then the latest DEFRA publication's
+    CSV header and row count, as a quick eyeball check before scan()/join().
+    """
     print("Sample CSV header:", get_header(SAMPLE_CSV))
     urls = get_defra_month_urls(1)
     path, csv_url = urls[0]
@@ -69,6 +78,11 @@ def inspect() -> None:
 
 
 def scan(n_months: int) -> None:
+    """Print, per month and in total across up to n_months of the most
+    recent DEFRA publications, how many rows have a populated Vat
+    Registration Num column -- the blank-rate measurement extending
+    FINDINGS.md's single-example DEFRA row into a real multi-month figure.
+    """
     if n_months <= 0:
         print(f"n_months must be positive, got {n_months}")
         return
@@ -111,6 +125,18 @@ def load_sample_lookup() -> dict[str, tuple[str, str, str]]:
 
 
 def join(n_months: int) -> None:
+    """Scan up to n_months of the most recent DEFRA publications for
+    populated-VAT rows and join them to the sample CSV by normalized
+    Supplier/CompanyName.
+
+    For each GB-context match, print its normalized VRN, checksum validity,
+    postcode agreement, and an HMRC sandbox lookup -- but only the first
+    time a given VRN is seen this run; a repeat (e.g. the same company
+    across months) is counted but not reprinted. A foreign-prefixed VAT
+    value prints only its VRN and postcode agreement, with no checksum or
+    sandbox lookup. Ends with a summary of the measured checksum-invalid
+    (false-positive) rate.
+    """
     if n_months <= 0:
         print(f"n_months must be positive, got {n_months}")
         return
@@ -251,6 +277,9 @@ def join(n_months: int) -> None:
 
 
 def main() -> None:
+    """CLI entry point: dispatch to inspect/scan/join based on sys.argv
+    (see module docstring for usage).
+    """
     mode = sys.argv[1] if len(sys.argv) > 1 else "inspect"
     if mode == "inspect":
         inspect()

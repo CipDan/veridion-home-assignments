@@ -55,7 +55,7 @@ def ensure_zip(date: str) -> str:
 
 
 def load_sample_lookup() -> dict[str, str]:
-    """Build {CompanyNumber: CompanyName} from the sample CSV."""
+    """Build {normalized (stripped, uppercased) CompanyNumber: CompanyName} from the sample CSV."""
     df = load_columns(SAMPLE_CSV, [COMPANY_NAME_COL, COMPANY_NUMBER_COL])
     return {number.strip().upper(): name for name, number in zip(df[COMPANY_NAME_COL], df[COMPANY_NUMBER_COL])}
 
@@ -117,8 +117,9 @@ def scan(date: str) -> list[dict]:
 
 def join(date: str) -> None:
     """Scan date's bulk ZIP for filings whose CompanyNumber is in the sample
-    CSV, then for each VAT mention found print its checksum validity and an
-    HMRC sandbox lookup, ending with a summary of the checksum-invalid rate.
+    CSV, then for each VAT mention found print its checksum validity --
+    plus an HMRC sandbox lookup the first time each distinct VRN is seen
+    this run -- ending with a summary of the checksum-invalid rate.
     """
     path = ensure_zip(date)
     print("Loading sample CSV CompanyNumber lookup...")

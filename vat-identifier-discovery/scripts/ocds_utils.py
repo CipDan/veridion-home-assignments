@@ -13,9 +13,10 @@ from collections.abc import Iterator
 def iter_records(path: str) -> Iterator[dict]:
     """Yield each parsed JSON object from a (gzip-compressed) OCDS .jsonl file.
 
-    Skips blank lines. Works on plain .jsonl too (gzip.open transparently
-    handles non-gzip files raising, so callers with plain .jsonl should open
-    it directly instead).
+    Skips blank lines. Requires actual gzip-compressed input -- gzip.open
+    doesn't transparently fall back to plain text, it raises BadGzipFile on a
+    non-gzip file, so callers with a plain (uncompressed) .jsonl should open
+    it directly instead of using this function.
     """
     with gzip.open(path, "rt", encoding="utf-8") as f:
         for line in f:

@@ -36,6 +36,7 @@ def read_council_csv(url: str) -> tuple[pd.DataFrame, int]:
     skipped = 0
 
     def _count_bad_line(bad_line: list[str]) -> None:
+        """pandas on_bad_lines callback: count a malformed row instead of raising or silently dropping it."""
         nonlocal skipped
         skipped += 1
         return None
@@ -49,8 +50,11 @@ def read_council_csv(url: str) -> tuple[pd.DataFrame, int]:
 
 
 def safe_print(text: str) -> None:
-    """Print, replacing any character the Windows console codepage can't render
-    (some council CSVs have emoji/unusual unicode in column names or values).
+    """Print, replacing every non-ASCII character with '?' so the output is
+    safe on any console codepage (some council CSVs have emoji/unusual
+    unicode in column names or values); this is stricter than necessary on
+    a codepage like cp1252 that could actually render some of those
+    characters.
     """
     print(text.encode("ascii", errors="replace").decode("ascii"))
 
@@ -81,6 +85,7 @@ def find_vat_column(columns: list[str]) -> str | None:
 
 
 def find_column(columns: list[str], keywords: tuple[str, ...]) -> str | None:
+    """Return the first column whose lowercased name contains any of keywords, or None if none match."""
     for col in columns:
         lowered = col.lower()
         if any(keyword in lowered for keyword in keywords):
@@ -89,6 +94,13 @@ def find_column(columns: list[str], keywords: tuple[str, ...]) -> str | None:
 
 
 def survey(n: int) -> list[dict]:
+    """Sample n distinct councils from CKAN, fetch each one's most recent
+    live CSV resource, and report whether it has a VAT-like column.
+
+    Returns one dict per successfully-checked council: {council, url,
+    vat_column, df, skipped_rows} -- used by join() to extract and
+    validate any VAT hits without re-fetching.
+    """
     total = ckan_utils.get_total_count(QUERY)
     print(f"Sampling up to {n} distinct council datasets from CKAN ('{QUERY}', {total} total datasets)...")
     packages = ckan_utils.random_sample_distinct_organizations(
@@ -158,6 +170,15 @@ def load_sample_lookup() -> dict[str, tuple[str, str]]:
 
 
 def join(n: int) -> None:
+    """Survey n councils, then for each one with a VAT column extract
+    populated (supplier, VAT) pairs, join them to the sample CSV by
+    normalized supplier name, and print each match's normalized VRN.
+
+    A GB/XI-context value also gets its checksum validity and an HMRC
+    sandbox lookup; a GD/HA (government/health authority) or other
+    non-GB-prefixed value prints "N/A" instead, since neither the checksum
+    nor the sandbox applies to it.
+    """
     results = survey(n)
     hits = [r for r in results if r["vat_column"] is not None]
     if not hits:
@@ -227,6 +248,9 @@ def join(n: int) -> None:
 
 
 def main() -> None:
+    """CLI entry point: dispatch to survey/join based on sys.argv (see
+    module docstring for usage).
+    """
     mode = sys.argv[1] if len(sys.argv) > 1 else "survey"
     n = int(sys.argv[2]) if len(sys.argv) > 2 else 40
     if mode == "survey":

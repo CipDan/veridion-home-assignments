@@ -70,10 +70,17 @@ def _part_local_path(part_name: str) -> str:
 
 
 def normalize_name(name: str) -> str:
+    """Uppercase and strip all whitespace, so minor formatting differences
+    between WDC's scraped entity names and the sample CSV's CompanyName
+    don't block a match.
+    """
     return "".join(name.upper().split())
 
 
 def ensure_file(path: str, url: str) -> str:
+    """Return the local path to url's downloaded file, downloading it
+    first if it isn't already cached on disk.
+    """
     if not os.path.exists(path):
         print(f"Downloading {url} -> {path} (large, may take a while)...")
         wdc_utils.download_file(url, path)
@@ -81,6 +88,10 @@ def ensure_file(path: str, url: str) -> str:
 
 
 def inspect() -> None:
+    """Download (if needed) and preview Organization_domain_stats.csv:
+    total domain count plus the first 5 rows' quad/entity counts and
+    property densities, as a quick eyeball check before survey()/join().
+    """
     domain_stats_path = ensure_file(DOMAIN_STATS_PATH, wdc_utils.DOMAIN_STATS_URL)
     n_domains = 0
     preview_rows: list[tuple[str, int, int, dict[str, float]]] = []
@@ -133,6 +144,12 @@ def survey() -> list[str]:
 
 
 def load_sample_name_lookup() -> dict[str, list[tuple[str, str]]]:
+    """Build {normalized CompanyName: [(CompanyNumber, original name), ...]}.
+
+    A normalized name can map to more than one CompanyNumber in the sample
+    (distinct companies that happen to share a name) -- keeping every
+    candidate lets join() tell an unambiguous match from an ambiguous one.
+    """
     df = load_columns(os.path.join(SCRIPT_DIR, SAMPLE_CSV), [COMPANY_NAME_COL, COMPANY_NUMBER_COL])
     lookup: dict[str, list[tuple[str, str]]] = {}
     for name, number in zip(df[COMPANY_NAME_COL], df[COMPANY_NUMBER_COL], strict=True):
@@ -141,6 +158,18 @@ def load_sample_name_lookup() -> dict[str, list[tuple[str, str]]]:
 
 
 def join(max_domains: int | None) -> None:
+    """Survey which .uk domains carry a populated vatID, download and scan
+    only the part file(s) that hold them (checkpointing progress and
+    deleting each part file once scanned), then join the extracted
+    name/vatID pairs to the sample CSV by normalized CompanyName and print
+    each unambiguous match's checksum validity -- plus an HMRC sandbox
+    lookup when the normalized VRN is a structurally valid 9 or 12 digits
+    (otherwise sandbox is reported as skipped).
+
+    max_domains caps how many surveyed UK domains are processed (None for
+    no limit) -- useful for a quick partial run before committing to the
+    full extraction.
+    """
     if max_domains is not None and max_domains <= 0:
         print(f"Invalid max_domains: {max_domains} (must be a positive integer, or omitted for no limit)")
         return
@@ -360,6 +389,9 @@ def join(max_domains: int | None) -> None:
 
 
 def main() -> None:
+    """CLI entry point: dispatch to inspect/survey/join based on sys.argv
+    (see module docstring for usage).
+    """
     mode = sys.argv[1] if len(sys.argv) > 1 else "inspect"
     if mode == "inspect":
         inspect()

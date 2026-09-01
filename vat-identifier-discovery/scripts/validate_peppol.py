@@ -56,6 +56,9 @@ def load_sample_name_lookup() -> dict[str, list[tuple[str, str]]]:
 
 
 def inspect_one() -> None:
+    """Print the raw JSON of the first GB match from the Peppol Directory,
+    as a quick eyeball check of the response shape before scan()/join().
+    """
     for entity in iter_all_results(country="GB", max_pages=1):
         print(json.dumps(entity, indent=2))
         return
@@ -63,6 +66,10 @@ def inspect_one() -> None:
 
 
 def scan(max_pages: int | None) -> None:
+    """Scan up to max_pages of GB Peppol Directory matches, printing the
+    participant-ID scheme breakdown and a preview of entities registered
+    under the 9932 (GB:VAT) scheme.
+    """
     n_entities = 0
     scheme_counts: dict[str, int] = {}
     vat_hits = []
@@ -83,6 +90,11 @@ def scan(max_pages: int | None) -> None:
 
 
 def join(max_pages: int | None) -> None:
+    """Scan up to max_pages of GB Peppol Directory matches for 9932
+    (GB:VAT) entries, join them to the sample CSV by normalized
+    CompanyName, then for each unambiguous match print its VAT digits,
+    checksum validity, and an HMRC sandbox lookup.
+    """
     print("Loading sample CSV CompanyName lookup...")
     sample_lookup = load_sample_name_lookup()
     print(f"Sample lookup size: {len(sample_lookup)}")
@@ -133,6 +145,9 @@ def join(max_pages: int | None) -> None:
 
 
 def main() -> None:
+    """CLI entry point: dispatch to inspect/scan/join based on sys.argv
+    (see module docstring for usage).
+    """
     mode = sys.argv[1] if len(sys.argv) > 1 else "inspect"
     if mode == "inspect":
         inspect_one()
