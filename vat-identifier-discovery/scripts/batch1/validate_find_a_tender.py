@@ -14,12 +14,15 @@ Tender's own live published records?
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from csv_utils import load_columns
 from hmrc_vat_check import get_access_token, is_valid_uk_vat_checksum, check_vat_number
 from ocds_utils import extract_gb_coh_vat_pairs, iter_records
 
-SAMPLE_CSV = "../BasicCompanyData-2026-08-01-part1_7.csv"
+SAMPLE_CSV = "../../BasicCompanyData-2026-08-01-part1_7.csv"
 DEFAULT_FTS_JSONL_GZ = "fts_2026.jsonl.gz"
 
 # Sample CSV's CompanyNumber column has a leading space in the header.

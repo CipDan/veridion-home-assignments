@@ -8,12 +8,12 @@ vat-identifier-discovery/.env*
 .claude/settings.local.json
 
 # Cached bulk data downloads (reproducible from their source URLs, large)
-vat-identifier-discovery/scripts/*.gz
-vat-identifier-discovery/scripts/*.zip
-vat-identifier-discovery/scripts/Organization_*.csv
+vat-identifier-discovery/scripts/batch3/*.gz
+vat-identifier-discovery/scripts/batch3/*.zip
+vat-identifier-discovery/scripts/batch3/Organization_*.csv
 
 # Resumable-extraction checkpoint (transient run state, not source data)
-vat-identifier-discovery/scripts/*_checkpoint.json
+vat-identifier-discovery/scripts/batch3/*_checkpoint.json
 
 # Python bytecode cache
 __pycache__/

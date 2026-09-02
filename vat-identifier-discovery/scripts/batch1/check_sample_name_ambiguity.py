@@ -10,9 +10,14 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from csv_utils import load_columns
 
-SAMPLE_CSV = "../BasicCompanyData-2026-08-01-part1_7.csv"
+SAMPLE_CSV = "../../BasicCompanyData-2026-08-01-part1_7.csv"
 COMPANY_NAME_COL = "CompanyName"
 COMPANY_NUMBER_COL = " CompanyNumber"
 
