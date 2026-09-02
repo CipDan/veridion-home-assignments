@@ -21,13 +21,16 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from csv_utils import load_columns
 from hmrc_vat_check import check_vat_number, get_access_token, is_valid_uk_vat_checksum
 from peppol_utils import get_country, get_names, get_scheme_and_local_id, iter_all_results
 
 GB_VAT_ICD = "9932"
-SAMPLE_CSV = "../BasicCompanyData-2026-08-01-part1_7.csv"
+SAMPLE_CSV = "../../BasicCompanyData-2026-08-01-part1_7.csv"
 COMPANY_NAME_COL = "CompanyName"
 COMPANY_NUMBER_COL = " CompanyNumber"
 

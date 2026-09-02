@@ -24,20 +24,23 @@ from __future__ import annotations
 import os
 import re
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import wdc_utils
 from csv_utils import load_columns
 from hmrc_vat_check import check_vat_number, get_access_token, is_valid_uk_vat_checksum, normalize_vat_number
 
-SAMPLE_CSV = "../BasicCompanyData-2026-08-01-part1_7.csv"
+SAMPLE_CSV = "../../BasicCompanyData-2026-08-01-part1_7.csv"
 COMPANY_NAME_COL = "CompanyName"
 COMPANY_NUMBER_COL = " CompanyNumber"
 
 # Cached/downloaded artifacts are resolved relative to this script's own
 # directory (not the process's current working directory) so they always
-# land in vat-identifier-discovery/scripts/ -- where the .gitignore patterns
-# for *.gz/Organization_*.csv/*_checkpoint.json expect them -- even when the
-# script is invoked from the repository root or elsewhere.
+# land in vat-identifier-discovery/scripts/batch3/ -- where the .gitignore
+# patterns for *.gz/Organization_*.csv/*_checkpoint.json expect them -- even
+# when the script is invoked from the repository root or elsewhere.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DOMAIN_STATS_PATH = os.path.join(SCRIPT_DIR, "Organization_domain_stats.csv")

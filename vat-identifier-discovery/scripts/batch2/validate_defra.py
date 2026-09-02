@@ -15,15 +15,18 @@ Usage:
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import gov_uk_utils
 from csv_utils import get_header, load_columns
 from hmrc_vat_check import check_vat_number, get_access_token, is_valid_uk_vat_checksum, normalize_vat_number
 
 DEFRA_COLLECTION = "/government/collections/defra-departmental-spending-over-25000"
-SAMPLE_CSV = "../BasicCompanyData-2026-08-01-part1_7.csv"
+SAMPLE_CSV = "../../BasicCompanyData-2026-08-01-part1_7.csv"
 
 SUPPLIER_COL = "Supplier "
 VAT_COL = "Vat Registration Num"

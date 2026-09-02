@@ -16,15 +16,18 @@ Usage:
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import ckan_utils
 from csv_utils import load_columns
 from hmrc_vat_check import check_vat_number, get_access_token, is_valid_uk_vat_checksum, normalize_vat_number
 
 QUERY = "council spend over 500"
-SAMPLE_CSV = "../BasicCompanyData-2026-08-01-part1_7.csv"
+SAMPLE_CSV = str(Path(__file__).resolve().parents[2] / "BasicCompanyData-2026-08-01-part1_7.csv")
 SEED = 26082026  # today's date, for a reproducible-but-arbitrary random sample
 
 
