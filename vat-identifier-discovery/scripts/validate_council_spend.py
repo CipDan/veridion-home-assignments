@@ -36,7 +36,7 @@ def read_council_csv(url: str) -> tuple[pd.DataFrame, int]:
     skipped = 0
 
     def _count_bad_line(bad_line: list[str]) -> None:
-        """pandas on_bad_lines callback: count a malformed row instead of raising or silently dropping it."""
+        """pandas on_bad_lines callback: count a malformed row, then drop it (by returning None) instead of raising."""
         nonlocal skipped
         skipped += 1
         return None

@@ -145,7 +145,7 @@ def get_best_csv_resource(package: dict) -> tuple[str, str] | None:
         url = resource.get("url", "")
         if not url or (fmt != "CSV" and not url.lower().endswith(".csv")):
             continue
-        if "webarchive.nationalarchives.gov.uk" in url:
+        if "webarchive.nationalarchives.gov.uk" in url.lower():
             continue
         candidates.append(resource)
     if not candidates:

@@ -194,17 +194,22 @@ def join(n_months: int) -> None:
     n_unsupported_format = 0
     n_postcode_agrees = 0
     seen_vrns = set()
-    non_uk_prefixes = ("LU", "DE", "FR", "NL", "IE", "IT", "ES", "BE", "DK", "SE", "AT", "PL")
-    # Government department (GD) and health authority (HA) VRNs use a separate,
-    # non-checksummed HMRC numbering scheme -- is_valid_uk_vat_checksum always
-    # reports these as invalid (see its docstring), so they must be reported as
-    # an unsupported format rather than a checksum-invalid false positive.
+    # Same classification as validate_council_spend.py's join(): any prefix
+    # other than GB/XI isn't a UK VAT number at all (skip checksum/sandbox),
+    # and GD/HA-prefixed values use HMRC's separate non-checksummed
+    # government/health-authority numbering scheme, so is_valid_uk_vat_checksum
+    # would always misreport them as invalid.
+    uk_prefixes = ("GB", "XI")
     unsupported_uk_prefixes = ("GD", "HA")
     for m in matches:
         raw_upper = m["vat_raw"].strip().upper()
-        is_foreign_prefixed = raw_upper.startswith(non_uk_prefixes)
+        is_unsupported_format = raw_upper.startswith(unsupported_uk_prefixes)
+        prefix = raw_upper[:2]
+        is_foreign_prefixed = not is_unsupported_format and prefix.isalpha() and prefix not in uk_prefixes
         if is_foreign_prefixed:
             n_foreign_prefix += 1
+        if is_unsupported_format:
+            n_unsupported_format += 1
         vrn = normalize_vat_number(m["vat_raw"])
         postcode_agrees = bool(m["source_postcode"]) and m["source_postcode"] == m["sample_postcode"]
         if postcode_agrees:
@@ -223,10 +228,6 @@ def join(n_months: int) -> None:
             print(f"Foreign-prefixed:     {is_foreign_prefixed} (excluded from UK checksum count/HMRC lookup)")
             print(f"Postcode agrees:      {postcode_agrees} (source={m['source_postcode']!r}, sample={m['sample_postcode']!r})")
             continue
-
-        is_unsupported_format = raw_upper.startswith(unsupported_uk_prefixes)
-        if is_unsupported_format:
-            n_unsupported_format += 1
 
         valid, style = is_valid_uk_vat_checksum(vrn)
         if valid and not is_unsupported_format:

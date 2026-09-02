@@ -26,14 +26,14 @@ def build_name_lookup() -> tuple[dict[str, list[tuple[str, str]]], int]:
     """Build {normalized CompanyName: [(CompanyNumber, original name), ...]} from the sample CSV, plus its row count."""
     df = load_columns(SAMPLE_CSV, [COMPANY_NAME_COL, COMPANY_NUMBER_COL])
     lookup: dict[str, list[tuple[str, str]]] = {}
-    for name, number in zip(df[COMPANY_NAME_COL], df[COMPANY_NUMBER_COL]):
+    for name, number in zip(df[COMPANY_NAME_COL], df[COMPANY_NUMBER_COL], strict=True):
         lookup.setdefault(normalize_name(name), []).append((number.strip(), name))
     return lookup, len(df)
 
 
 def count_ambiguous_names(lookup: dict[str, list[tuple[str, str]]]) -> int:
     """Count normalized names that map to more than one distinct CompanyNumber."""
-    return sum(1 for candidates in lookup.values() if len(candidates) > 1)
+    return sum(1 for candidates in lookup.values() if len({number for number, _ in candidates}) > 1)
 
 
 if __name__ == "__main__":

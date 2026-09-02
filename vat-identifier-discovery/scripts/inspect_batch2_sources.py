@@ -85,7 +85,7 @@ def survey_vat_column_presence() -> None:
 
 def inspect_council_datasets() -> None:
     """Print the total count of CKAN "spend over 500" datasets, then a
-    random sample of 3 with their resource counts and CSV resource URLs,
+    random sample of up to 3 with their resource counts and CSV resource URLs,
     as a smoke test of ckan_utils against the real CKAN API.
     """
     total = ckan_utils.get_total_count("spend over 500")
