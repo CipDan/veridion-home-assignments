@@ -34,7 +34,7 @@ from ch_accounts_utils import (
 from csv_utils import load_columns
 from hmrc_vat_check import check_vat_number, get_access_token, is_valid_uk_vat_checksum, normalize_vat_number
 
-SAMPLE_CSV = "../../BasicCompanyData-2026-08-01-part1_7.csv"
+SAMPLE_CSV = str(Path(__file__).resolve().parents[2] / "BasicCompanyData-2026-08-01-part1_7.csv")
 COMPANY_NAME_COL = "CompanyName"
 COMPANY_NUMBER_COL = " CompanyNumber"
 

@@ -18,3 +18,8 @@ vat-identifier-discovery/scripts/batch3/*_checkpoint.json
 # Python bytecode cache
 __pycache__/
 *.pyc
+
+# MyPy cache folder
+vat-identifier-discovery/.mypy_cache/
+vat-identifier-discovery/scripts/.mypy_cache/
+vat-identifier-discovery/scripts/*/.mypy_cache/
