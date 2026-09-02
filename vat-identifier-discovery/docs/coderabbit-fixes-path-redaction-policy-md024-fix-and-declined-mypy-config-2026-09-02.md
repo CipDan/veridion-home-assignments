@@ -112,7 +112,7 @@ Delivered as the message accompanying this document's creation.
 - `vat-identifier-discovery/docs/review-fix-sample-csv-path-scoping-and-mypy-import-resolution-2026-09-02.md` — local-account path redacted at lines 30 and 36; `MD024` disable/enable comment pair added around the §4.3 verbatim block (§1.6).
 - `vat-identifier-discovery/CLAUDE.md` — new "Local/environment paths" constraint added under Constraints (Hard Rules) (§1.6).
 
-No other file in `vat-identifier-discovery/scripts/` or `vat-identifier-discovery/docs/` was read or touched this session.
+No other file in `vat-identifier-discovery/scripts/` or `vat-identifier-discovery/docs/` was edited this session. The precedent document identified in §2.2 (`coderabbit-fixes-name-ambiguity-counting-and-defra-prefix-allowlist-2026-09-02.md`) was read in full but not modified.
 
 ## Known issues carried forward
 
