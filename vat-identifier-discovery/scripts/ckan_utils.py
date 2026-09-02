@@ -30,9 +30,11 @@ def get_total_count(query: str) -> int:
 
 
 def random_sample_packages(query: str, n: int, seed: int) -> list[dict]:
-    """Randomly sample n dataset records matching a CKAN query, without fetching the full result set.
+    """Randomly sample up to n dataset records matching a CKAN query, without fetching the full result set.
 
-    Draws n distinct random offsets into the total result count and fetches one record per offset.
+    Draws n distinct random offsets into the total result count and fetches one record per offset;
+    an offset can come back empty if the catalogue changes between the count and the fetch, so
+    fewer than n records may be returned.
     """
     total = get_total_count(query)
     rng = random.Random(seed)
@@ -132,8 +134,10 @@ def random_sample_distinct_organizations(
 
 
 def get_best_csv_resource(package: dict) -> tuple[str, str] | None:
-    """Pick one usable CSV resource from a dataset: prefer non-archived, most
-    recently created. Returns None if no live-looking CSV resource exists.
+    """Pick one usable CSV resource from a dataset: excludes archived
+    (webarchive.nationalarchives.gov.uk) links entirely, then picks the most
+    recently created of what remains. Returns None if no live-looking CSV
+    resource exists.
     """
     candidates = []
     for resource in package.get("resources", []):
@@ -141,7 +145,7 @@ def get_best_csv_resource(package: dict) -> tuple[str, str] | None:
         url = resource.get("url", "")
         if not url or (fmt != "CSV" and not url.lower().endswith(".csv")):
             continue
-        if "webarchive.nationalarchives.gov.uk" in url:
+        if "webarchive.nationalarchives.gov.uk" in url.lower():
             continue
         candidates.append(resource)
     if not candidates:

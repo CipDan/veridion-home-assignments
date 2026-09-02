@@ -31,7 +31,9 @@ POSTCODE_SOURCE_COL = "Supplier Postcode"
 
 
 def get_defra_month_urls(n_months: int) -> list[tuple[str, str]]:
-    """Return (publication_path, csv_url) for the n_months most recent DEFRA publications."""
+    """Return (publication_path, csv_url) for up to n_months of the most
+    recent DEFRA publications -- fewer if any of them lacks a CSV attachment.
+    """
     collection = gov_uk_utils.fetch_content(DEFRA_COLLECTION)
     doc_paths = gov_uk_utils.get_collection_document_paths(collection)
     results = []
@@ -55,10 +57,17 @@ def read_spend_csv(url: str) -> pd.DataFrame:
 
 
 def normalize_name(name: str) -> str:
+    """Uppercase and strip all whitespace, so minor formatting differences
+    between DEFRA's Supplier names and the sample CSV's CompanyName don't
+    block a match.
+    """
     return "".join(name.upper().split())
 
 
 def inspect() -> None:
+    """Print the sample CSV's header, then the latest DEFRA publication's
+    CSV header and row count, as a quick eyeball check before scan()/join().
+    """
     print("Sample CSV header:", get_header(SAMPLE_CSV))
     urls = get_defra_month_urls(1)
     path, csv_url = urls[0]
@@ -69,6 +78,11 @@ def inspect() -> None:
 
 
 def scan(n_months: int) -> None:
+    """Print, per month and in total across up to n_months of the most
+    recent DEFRA publications, how many rows have a populated Vat
+    Registration Num column -- the blank-rate measurement extending
+    FINDINGS.md's single-example DEFRA row into a real multi-month figure.
+    """
     if n_months <= 0:
         print(f"n_months must be positive, got {n_months}")
         return
@@ -111,6 +125,18 @@ def load_sample_lookup() -> dict[str, tuple[str, str, str]]:
 
 
 def join(n_months: int) -> None:
+    """Scan up to n_months of the most recent DEFRA publications for
+    populated-VAT rows and join them to the sample CSV by normalized
+    Supplier/CompanyName.
+
+    For each GB-context match, print its normalized VRN, checksum validity,
+    postcode agreement, and an HMRC sandbox lookup -- but only the first
+    time a given VRN is seen this run; a repeat (e.g. the same company
+    across months) is counted but not reprinted. A foreign-prefixed VAT
+    value prints only its VRN and postcode agreement, with no checksum or
+    sandbox lookup. Ends with a summary of the measured checksum-invalid
+    (false-positive) rate.
+    """
     if n_months <= 0:
         print(f"n_months must be positive, got {n_months}")
         return
@@ -168,17 +194,22 @@ def join(n_months: int) -> None:
     n_unsupported_format = 0
     n_postcode_agrees = 0
     seen_vrns = set()
-    non_uk_prefixes = ("LU", "DE", "FR", "NL", "IE", "IT", "ES", "BE", "DK", "SE", "AT", "PL")
-    # Government department (GD) and health authority (HA) VRNs use a separate,
-    # non-checksummed HMRC numbering scheme -- is_valid_uk_vat_checksum always
-    # reports these as invalid (see its docstring), so they must be reported as
-    # an unsupported format rather than a checksum-invalid false positive.
+    # Same classification as validate_council_spend.py's join(): any prefix
+    # other than GB/XI isn't a UK VAT number at all (skip checksum/sandbox),
+    # and GD/HA-prefixed values use HMRC's separate non-checksummed
+    # government/health-authority numbering scheme, so is_valid_uk_vat_checksum
+    # would always misreport them as invalid.
+    uk_prefixes = ("GB", "XI")
     unsupported_uk_prefixes = ("GD", "HA")
     for m in matches:
         raw_upper = m["vat_raw"].strip().upper()
-        is_foreign_prefixed = raw_upper.startswith(non_uk_prefixes)
+        is_unsupported_format = raw_upper.startswith(unsupported_uk_prefixes)
+        prefix = raw_upper[:2]
+        is_foreign_prefixed = not is_unsupported_format and prefix.isalpha() and prefix not in uk_prefixes
         if is_foreign_prefixed:
             n_foreign_prefix += 1
+        if is_unsupported_format:
+            n_unsupported_format += 1
         vrn = normalize_vat_number(m["vat_raw"])
         postcode_agrees = bool(m["source_postcode"]) and m["source_postcode"] == m["sample_postcode"]
         if postcode_agrees:
@@ -197,10 +228,6 @@ def join(n_months: int) -> None:
             print(f"Foreign-prefixed:     {is_foreign_prefixed} (excluded from UK checksum count/HMRC lookup)")
             print(f"Postcode agrees:      {postcode_agrees} (source={m['source_postcode']!r}, sample={m['sample_postcode']!r})")
             continue
-
-        is_unsupported_format = raw_upper.startswith(unsupported_uk_prefixes)
-        if is_unsupported_format:
-            n_unsupported_format += 1
 
         valid, style = is_valid_uk_vat_checksum(vrn)
         if valid and not is_unsupported_format:
@@ -251,6 +278,9 @@ def join(n_months: int) -> None:
 
 
 def main() -> None:
+    """CLI entry point: dispatch to inspect/scan/join based on sys.argv
+    (see module docstring for usage).
+    """
     mode = sys.argv[1] if len(sys.argv) > 1 else "inspect"
     if mode == "inspect":
         inspect()

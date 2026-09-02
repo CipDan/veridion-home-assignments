@@ -28,6 +28,10 @@ BROADER_SURVEY_PUBLICATIONS = {
 
 
 def inspect_departments() -> None:
+    """Print each core department's publication count, then the CSV
+    attachment URLs of its first two publications, as a smoke test of
+    gov_uk_utils against real endpoints.
+    """
     for dept_name, base_path in DEPARTMENT_COLLECTIONS.items():
         collection = gov_uk_utils.fetch_content(base_path)
         doc_paths = gov_uk_utils.get_collection_document_paths(collection)
@@ -39,6 +43,11 @@ def inspect_departments() -> None:
 
 
 def _report_vat_column_presence(dept_name: str, publication_path: str) -> None:
+    """Fetch one publication's first CSV attachment and print whether "vat"
+    appears (case-insensitively) anywhere in its first 5 lines, along with
+    an ASCII-safe preview of the header row. Helper for
+    survey_vat_column_presence().
+    """
     publication = gov_uk_utils.fetch_content(publication_path)
     csv_urls = gov_uk_utils.get_csv_attachment_urls(publication)
     if not csv_urls:
@@ -55,7 +64,9 @@ def _report_vat_column_presence(dept_name: str, publication_path: str) -> None:
 
 
 def survey_vat_column_presence() -> None:
-    """Quick header-only check: does this department's latest spend CSV have a VAT column at all?"""
+    """Quick check: does this department's latest spend CSV mention "vat"
+    anywhere in its first 5 lines (header included)?
+    """
     print("\n--- Broader department survey: VAT column presence in latest publication ---")
     for dept_name, base_path in BROADER_SURVEY_COLLECTIONS.items():
         try:
@@ -73,6 +84,10 @@ def survey_vat_column_presence() -> None:
 
 
 def inspect_council_datasets() -> None:
+    """Print the total count of CKAN "spend over 500" datasets, then a
+    random sample of up to 3 with their resource counts and CSV resource URLs,
+    as a smoke test of ckan_utils against the real CKAN API.
+    """
     total = ckan_utils.get_total_count("spend over 500")
     print(f"\nCKAN 'spend over 500' total datasets: {total}")
     sample = ckan_utils.random_sample_packages("spend over 500", n=3, seed=42)
@@ -126,8 +141,9 @@ def list_council_keyword_organizations() -> None:
     """List every distinct organization title that contains one of
     is_local_council()'s inclusion keywords, split into what the filter
     currently accepts vs. excludes -- a manual check for non-council bodies
-    the exclusion list still misses (like the Higher Education Funding
-    Council for England gap found in review).
+    the exclusion list has yet to catch (this is how the Higher Education
+    Funding Council for England gap was originally found; it's since been
+    added to _NON_COUNCIL_ORG_KEYWORDS).
     """
     all_packages = ckan_utils.get_all_packages("council spend over 500")
     inclusion_keywords = ("council", "borough", "county", "unitary", "combined authority")

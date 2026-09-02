@@ -82,6 +82,10 @@ def join_against_sample(vat_hits: list[dict], sample_lookup: dict[str, dict]) ->
 
 
 def main() -> None:
+    """CLI entry point: scan the FTS bulk file for GB-COH/GB-VAT pairs, join
+    hits to the sample CSV, and print each match's checksum validity and an
+    HMRC sandbox lookup (see module docstring for usage: [path] [limit]).
+    """
     path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_FTS_JSONL_GZ
     limit = int(sys.argv[2]) if len(sys.argv) > 2 else None
 
